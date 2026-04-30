@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Platform Design System</title>
+  <style>
+    :root {
+      --primary: #0F4C75;
+      --primary-light: #1B9AAA;
+      --secondary: #E8B960;
+      --accent: #E07A5F;
+      --bg-base: #F4F7F6;
+      --surface: rgba(255, 255, 255, 0.65);
+      --surface-border: rgba(255, 255, 255, 0.4);
+      --text-dark: #2D3436;
+      --text-muted: #636E72;
+      --shadow: 0 8px 32px rgba(15, 76, 117, 0.15);
+      --radius: 16px;
+      --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-main);
+      background: var(--bg-base);
+      color: var(--text-dark);
+      line-height: 1.6;
+      overflow-x: hidden;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* ───────── ENHANCED ANIMATED BACKGROUND ───────── */
+    .animated-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      background: linear-gradient(135deg, #F4F7F6 0%, #E8F0F2 100%);
+    }
+
+    /* ✨ PARALLAX STARFIELD LAYER */
+    .stars, .stars2, .stars3 {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      background: transparent;
+      animation: starMove linear infinite;
+      pointer-events: none;
+    }
+    .stars { 
+      box-shadow: 
+        120px 340px rgba(15,76,117,0.6), 450px 890px rgba(15,76,117,0.6), 780px 210px rgba(15,76,117,0.6),
+        230px 670px rgba(27,154,170,0.6), 910px 430px rgba(27,154,170,0.6), 560px 120px rgba(15,76,117,0.6),
+        340px 980px rgba(232,185,96,0.6), 670px 540px rgba(232,185,96,0.6), 190px 230px rgba(15,76,117,0.6),
+        820px 760px rgba(224,122,95,0.6), 410px 390px rgba(27,154,170,0.6), 730px 890px rgba(15,76,117,0.6),
+        150px 520px rgba(232,185,96,0.6), 590px 270px rgba(15,76,117,0.6), 940px 610px rgba(27,154,170,0.6),
+        280px 840px rgba(224,122,95,0.6), 620px 150px rgba(15,76,117,0.6), 370px 720px rgba(27,154,170,0.6),
+        860px 380px rgba(232,185,96,0.6), 510px 950px rgba(15,76,117,0.6);
+      animation-duration: 90s;
+      opacity: 0.5;
+    }
+    .stars2 {
+      width: 2px; height: 2px;
+      box-shadow:
+        320px 540px rgba(15,76,117,0.4), 650px 290px rgba(27,154,170,0.4), 180px 870px rgba(232,185,96,0.4),
+        740px 410px rgba(224,122,95,0.4), 290px 130px rgba(15,76,117,0.4), 910px 680px rgba(27,154,170,0.4),
+        460px 920px rgba(232,185,96,0.4), 130px 450px rgba(15,76,117,0.4), 820px 240px rgba(27,154,170,0.4),
+        570px 760px rgba(224,122,95,0.4);
+      animation-duration: 130s;
+      opacity: 0.3;
+    }
+    .stars3 {
+      width: 3px; height: 3px;
+      box-shadow:
+        420px 640px rgba(15,76,117,0.3), 180px 370px rgba(27,154,170,0.3), 790px 810px rgba(232,185,96,0.3),
+        310px 190px rgba(224,122,95,0.3), 650px 920px rgba(15,76,117,0.3);
+      animation-duration: 200s;
+      opacity: 0.2;
+    }
+    @keyframes starMove {
+      from { transform: translateY(0); }
+      to { transform: translateY(-2200px); }
+    }
+
+    /* 🪄 FLOATING PARTICLES (using your palette colors) */
+    .particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      animation: floatParticle linear infinite, pulseParticle ease-in-out infinite;
+      pointer-events: none;
+      opacity: 0;
+      filter: blur(0.5px);
+    }
+    .particle::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, currentColor 0%, transparent 70%);
+      animation: glowPulse 2.5s ease-in-out infinite;
+      opacity: 0.6;
+    }
+    @keyframes floatParticle {
+      0% { transform: translate(0, 0) scale(1); opacity: 0; }
+      10% { opacity: 0.8; }
+      90% { opacity: 0.8; }
+      100% { transform: translate(var(--tx, 0), var(--ty, -120vh)) scale(var(--s, 1)); opacity: 0; }
+    }
+    @keyframes pulseParticle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.2; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.4); }
+    }
+
+    /* Generate 12 particles with your palette colors + randomized paths */
+    .particle:nth-child(1)  { --tx: -25vw; --ty: -130vh; --s: 0.9; left: 20%; top: 85%; background: var(--primary-light); color: var(--primary-light); animation-duration: 28s, 3.4s; animation-delay: 0s, 0.6s; }
+    .particle:nth-child(2)  { --tx: 30vw; --ty: -110vh; --s: 1.1; left: 55%; top: 90%; background: var(--secondary); color: var(--secondary); animation-duration: 35s, 2.9s; animation-delay: 3s, 1.2s; }
+    .particle:nth-child(3)  { --tx: -15vw; --ty: -140vh; --s: 0.8; left: 80%; top: 70%; background: var(--accent); color: var(--accent); animation-duration: 31s, 4.1s; animation-delay: 1s, 0.3s; }
+    .particle:nth-child(4)  { --tx: 20vw; --ty: -100vh; --s: 1.2; left: 35%; top: 60%; background: var(--primary); color: var(--primary); animation-duration: 26s, 3.7s; animation-delay: 5s, 2.1s; }
+    .particle:nth-child(5)  { --tx: -35vw; --ty: -125vh; --s: 0.7; left: 10%; top: 45%; background: var(--primary-light); color: var(--primary-light); animation-duration: 33s, 2.6s; animation-delay: 2s, 0.9s; }
+    .particle:nth-child(6)  { --tx: 40vw; --ty: -115vh; --s: 1.0; left: 70%; top: 80%; background: var(--secondary); color: var(--secondary); animation-duration: 29s, 3.8s; animation-delay: 4s, 1.7s; }
+    .particle:nth-child(7)  { --tx: -10vw; --ty: -135vh; --s: 0.95; left: 45%; top: 30%; background: var(--accent); color: var(--accent); animation-duration: 37s, 4.3s; animation-delay: 0.5s, 2.4s; }
+    .particle:nth-child(8)  { --tx: 25vw; --ty: -105vh; --s: 1.15; left: 90%; top: 55%; background: var(--primary); color: var(--primary); animation-duration: 24s, 3.1s; animation-delay: 6s, 0.8s; }
+    .particle:nth-child(9)  { --tx: -30vw; --ty: -120vh; --s: 0.85; left: 15%; top: 20%; background: var(--primary-light); color: var(--primary-light); animation-duration: 32s, 2.8s; animation-delay: 3.5s, 1.5s; }
+    .particle:nth-child(10) { --tx: 35vw; --ty: -145vh; --s: 1.05; left: 60%; top: 95%; background: var(--secondary); color: var(--secondary); animation-duration: 30s, 3.5s; animation-delay: 1.5s, 2.2s; }
+    .particle:nth-child(11) { --tx: -20vw; --ty: -110vh; --s: 0.9; left: 25%; top: 40%; background: var(--accent); color: var(--accent); animation-duration: 27s, 4.0s; animation-delay: 5.5s, 0.4s; }
+    .particle:nth-child(12) { --tx: 15vw; --ty: -130vh; --s: 1.25; left: 85%; top: 15%; background: var(--primary); color: var(--primary); animation-duration: 34s, 3.2s; animation-delay: 2.5s, 1.9s; }
+
+    /* Keep your original dot grid overlay */
+    .animated-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(15,76,117,0.08) 1px, transparent 0);
+      background-size: 24px 24px;
+      opacity: 0.5;
+      z-index: 1;
+    }
+
+    /* Keep your original blob animations (now layered under particles) */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.45;
+      mix-blend-mode: multiply;
+      will-change: transform;
+      z-index: 0;
+    }
+    .blob-1 { width: 55vmax; height: 55vmax; top: -10%; left: -10%; background: var(--primary-light); animation: float1 18s ease-in-out infinite; }
+    .blob-2 { width: 45vmax; height: 45vmax; bottom: -5%; right: -10%; background: var(--secondary); animation: float2 22s ease-in-out infinite reverse; }
+    .blob-3 { width: 35vmax; height: 35vmax; top: 40%; left: 30%; background: var(--accent); opacity: 0.35; animation: float3 20s ease-in-out infinite; }
+    .blob-4 { width: 25vmax; height: 25vmax; top: 15%; right: 25%; background: var(--primary); opacity: 0.3; animation: float4 15s ease-in-out infinite reverse; }
+
+    @keyframes float1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(8vw, 5vh) scale(1.1); } }
+    @keyframes float2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-6vw, -4vh) scale(1.05); } }
+    @keyframes float3 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-5vw, 6vh) scale(1.15); } }
+    @keyframes float4 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(4vw, -5vh) scale(0.9); } }
+
+    /* ───────── LAYOUT & PANELS (UNCHANGED) ───────── */
+    .showcase {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+      display: grid;
+      gap: 28px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      position: relative;
+      z-index: 2;
+    }
+    .panel {
+      background: var(--surface);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .panel:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(15,76,117,0.2); }
+    .panel h2 { font-size: 1.5rem; margin-bottom: 16px; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+    .panel p, .panel ul { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 14px; }
+    .panel ul { padding-left: 18px; }
+    .badge { background: var(--primary-light); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+
+    /* ───────── COLOR PALETTE (UNCHANGED) ───────── */
+    .swatches { display: flex; flex-wrap: wrap; gap: 14px; }
+    .swatch {
+      width: 110px;
+      height: 70px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 10px;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+    .swatch:hover { transform: scale(1.05); }
+    .swatch span { background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 6px; }
+    .swatch.light { color: var(--text-dark); }
+    .swatch.light span { background: rgba(255,255,255,0.7); }
+
+    /* ───────── BG COLOR VARIATIONS (UNCHANGED) ───────── */
+    .bg-variants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .bg-box {
+      height: 80px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+    .bg-light { background: #F8F9FA; color: var(--text-dark); }
+    .bg-neutral { background: #E9ECEF; color: var(--text-dark); }
+    .bg-dark { background: #1E293B; color: #E2E8F0; }
+
+    /* ───────── INSPIRATION (UNCHANGED) ───────── */
+    .inspiration-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .note { background: rgba(15,76,117,0.05); padding: 12px; border-radius: 10px; border-left: 3px solid var(--primary-light); }
+    .note strong { color: var(--primary); display: block; margin-bottom: 4px; }
+
+    /* ───────── LIVE UI PREVIEW (UNCHANGED) ───────── */
+    .test-card {
+      background: rgba(255,255,255,0.85);
+      border-radius: 14px;
+      padding: 20px;
+      margin-top: 10px;
+      border: 1px solid rgba(15,76,117,0.1);
+    }
+    .progress-bar { height: 8px; background: #E2E8F0; border-radius: 99px; margin: 12px 0; overflow: hidden; }
+    .progress-fill { height: 100%; width: 68%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 99px; transition: width 0.4s ease; }
+    .timer { font-family: monospace; font-size: 1.1rem; color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .btn { background: var(--primary); color: white; padding: 10px 18px; border: none; border-radius: 10px; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+    .btn:hover { background: var(--primary-light); transform: scale(1.02); }
+    .btn:active { transform: scale(0.98); }
+
+    /* ───────── RESPONSIVE (UNCHANGED) ───────── */
+    @media (max-width: 768px) {
+      .showcase { grid-template-columns: 1fr; }
+      .bg-variants { grid-template-columns: 1fr; }
+      .inspiration-grid { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stars, .stars2, .stars3, .particle, .blob { animation: none !important; opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ✨ ENHANCED ANIMATED BACKGROUND LAYER -->
+  <div class="animated-bg">
+    <!-- Parallax Starfield -->
+    <div class="stars"></div>
+    <div class="stars2"></div>
+    <div class="stars3"></div>
+    
+    <!-- Floating Particles (12) -->
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    
+    <!-- Original Blob Animations (kept intact) -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+  </div>
+
+  <!-- Main Showcase (UNCHANGED) -->
+  <main class="showcase">
+    <header class="panel" style="grid-column: 1 / -1; text-align: center;">
+      <h1 style="font-size: 2.2rem; color: var(--primary); margin-bottom: 8px;">🎓 Test Platform Design System</h1>
+      <p style="max-width: 600px; margin: 0 auto;">A calm, focused, and modern UI direction for high-stakes testing environments. Built for clarity, accessibility, and subtle motion.</p>
+    </header>
+
+    <!-- 1. Background Animations -->
+    <section class="panel">
+      <h2>🌊 Background Animations <span class="badge">LIVE</span></h2>
+      <p>Soft, blurred gradient blobs drift slowly using CSS-only transforms. Paired with a subtle dot grid for spatial depth. Optimized for focus: zero layout thrashing, `will-change` on animated elements only.</p>
+      <ul>
+        <li>4 organic blobs with `filter: blur(70px)`</li>
+        <li>15–22s staggered keyframe cycles</li>
+        <li>Respects `prefers-reduced-motion`</li>
+        <li>Non-distracting contrast ratios maintained</li>
+      </ul>
+    </section>
+
+    <!-- 2. Color Palette -->
+    <section class="panel">
+      <h2>🎨 Color Palette</h2>
+      <p>Warm-cool balance for sustained focus. High legibility, WCAG AA+ compliant.</p>
+      <div class="swatches">
+        <div class="swatch" style="background: var(--primary);"><span>Primary<br>#0F4C75</span></div>
+        <div class="swatch" style="background: var(--primary-light);"><span>Primary Light<br>#1B9AAA</span></div>
+        <div class="swatch light" style="background: var(--secondary); color: var(--text-dark);"><span>Secondary<br>#E8B960</span></div>
+        <div class="swatch" style="background: var(--accent);"><span>Accent<br>#E07A5F</span></div>
+        <div class="swatch light" style="background: var(--bg-base); color: var(--text-dark);"><span>Base<br>#F4F7F6</span></div>
+        <div class="swatch light" style="background: #FFFFFF; color: var(--text-dark);"><span>Surface<br>#FFFFFF</span></div>
+      </div>
+    </section>
+
+    <!-- 3. Background Color Variations -->
+    <section class="panel">
+      <h2>🖼️ Background Color Options</h2>
+      <p>Choose context-appropriate surfaces for different testing states or user preferences.</p>
+      <div class="bg-variants">
+        <div class="bg-box bg-light">Light Focus<br><small>Default</small></div>
+        <div class="bg-box bg-neutral">Neutral Surface<br><small>Dashboard</small></div>
+        <div class="bg-box bg-dark">Dark Mode<br><small>Night/Accessibility</small></div>
+      </div>
+    </section>
+
+    <!-- 4. Inspiration & Principles -->
+    <section class="panel">
+      <h2>💡 Inspiration & Design Notes</h2>
+      <div class="inspiration-grid">
+        <div class="note">
+          <strong>Typography</strong>
+          Inter/system-ui. 16px base, 1.6 line-height. High x-height for readability during long sessions.
+        </div>
+        <div class="note">
+          <strong>Spacing & Rhythm</strong>
+          4px baseline grid. Generous padding reduces cognitive load. Cards float with `backdrop-filter`.
+        </div>
+        <div class="note">
+          <strong>Motion Rules</strong>
+          Only `transform` & `opacity`. 0.2–0.4s ease curves. No parallax, no bounce. Purpose: calm focus.
+        </div>
+        <div class="note">
+          <strong>Accessibility</strong>
+          Contrast ≥ 4.5:1. `prefers-reduced-motion` honored. Focus states visible. Keyboard navigable.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Live UI Component Preview -->
+    <section class="panel" style="grid-column: 1 / -1;">
+      <h2>📝 Live UI Preview: Test Interface</h2>
+      <p>How the palette, glass surfaces, and motion principles translate into a real testing card.</p>
+      <div class="test-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h3 style="margin:0; font-size:1.1rem;">Section 2: Quantitative Reasoning</h3>
+          <div class="timer">⏱ 01:24:18</div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+        <p style="margin: 12px 0; font-size: 0.95rem; color: var(--text-dark);">
+          Question 14 of 24<br>
+          <em>If the rate of change is proportional to the current value, which differential equation represents this relationship?</em>
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 14px 0;">
+          <button class="btn">Submit Answer</button>
+          <button class="btn" style="background: transparent; color: var(--primary); border: 1px solid var(--primary);">Flag for Review</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+</body>
+</html>
