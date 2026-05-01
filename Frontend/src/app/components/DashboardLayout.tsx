@@ -46,15 +46,59 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+      {/* Animated Background - matching ColorPalette.html */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: -1,
         overflow: 'hidden',
-        background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1729 100%)',
-      }}
-    >
+        background: 'linear-gradient(135deg, #F4F7F6 0%, #E8F0F2 100%)',
+      }}>
+        {/* Blob animations - static for performance */}
+        <div style={{
+          position: 'absolute',
+          width: '500px',
+          height: '500px',
+          top: '-10%',
+          left: '-10%',
+          background: '#1B9AAA',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+          opacity: 0.4,
+          mixBlendMode: 'multiply',
+          zIndex: 0,
+        }} />
+        <div style={{
+          position: 'absolute',
+          width: '450px',
+          height: '450px',
+          bottom: '-5%',
+          right: '-10%',
+          background: '#E8B960',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+          opacity: 0.4,
+          mixBlendMode: 'multiply',
+          zIndex: 0,
+        }} />
+        <div style={{
+          position: 'absolute',
+          width: '400px',
+          height: '400px',
+          top: '40%',
+          left: '30%',
+          background: '#E07A5F',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+          opacity: 0.3,
+          mixBlendMode: 'multiply',
+          zIndex: 0,
+        }} />
+      </div>
+
+
+
       {/* Navbar */}
       <nav
         className="sticky top-0 z-50"

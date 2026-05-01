@@ -76,34 +76,33 @@ const GlassStatCard: React.FC<{
   <div
     className="rounded-2xl p-5 relative overflow-hidden transition-all duration-200"
     style={{
-      background: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: 'rgba(255,255,255,0.7)',
+      border: '1px solid rgba(15,76,117,0.12)',
       backdropFilter: 'blur(16px)',
       cursor: onClick ? 'pointer' : 'default',
+      boxShadow: '0 4px 16px rgba(15,76,117,0.08)',
     }}
     onClick={onClick}
     onMouseEnter={(e) => {
       if (onClick) {
-        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
+        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
         (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(15,76,117,0.12)';
       }
     }}
     onMouseLeave={(e) => {
       if (onClick) {
-        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
         (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.08)';
       }
     }}
   >
-    <div
-      className="absolute inset-0 pointer-events-none opacity-15"
-      style={{ background: gradient }}
-    />
     <div className="relative z-10">
       <div className="flex items-start justify-between mb-3">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: gradient, boxShadow: `0 0 20px ${glow}` }}
+          style={{ background: gradient, boxShadow: `0 4px 12px ${glow}` }}
         >
           {icon}
         </div>
@@ -116,8 +115,8 @@ const GlassStatCard: React.FC<{
           </span>
         )}
       </div>
-      <div className="text-2xl text-white mb-0.5">{value}</div>
-      <div className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</div>
+      <div className="text-2xl mb-0.5" style={{ color: '#0F4C75', fontWeight: 600 }}>{value}</div>
+      <div className="text-xs" style={{ color: '#636E72' }}>{label}</div>
     </div>
   </div>
 );
@@ -163,11 +162,11 @@ const AdminDashboard: React.FC = () => {
               >
                 {isRootAdmin ? '👑' : '⚙️'}
               </div>
-              <h1 className="text-white" style={{ fontSize: '1.4rem' }}>
+              <h1 style={{ fontSize: '1.4rem', color: '#0F4C75' }}>
                 {isRootAdmin ? 'Root Admin' : 'Batch Admin'} Dashboard
               </h1>
             </div>
-            <p className="text-xs pl-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <p className="text-xs pl-1" style={{ color: '#636E72' }}>
               {isRootAdmin ? 'Full platform control & oversight' : 'Manage your assigned batches & tests'}
             </p>
           </div>
@@ -242,7 +241,7 @@ const AdminDashboard: React.FC = () => {
         {/* Tabs */}
         <div
           className="flex gap-1 mb-6 p-1 rounded-xl overflow-x-auto"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', width: 'fit-content' }}
+          style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(15,76,117,0.12)', width: 'fit-content', boxShadow: '0 2px 8px rgba(15,76,117,0.06)' }}
         >
           {tabs.map((tab) => {
             const active = selectedTab === tab.id;
@@ -252,9 +251,9 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setSelectedTab(tab.id)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-200"
                 style={{
-                  background: active ? 'rgba(99,102,241,0.25)' : 'transparent',
-                  color: active ? '#a5b4fc' : 'rgba(255,255,255,0.5)',
-                  border: active ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                  background: active ? 'rgba(15,76,117,0.12)' : 'transparent',
+                  color: active ? '#0F4C75' : '#636E72',
+                  border: active ? '1px solid rgba(15,76,117,0.2)' : '1px solid transparent',
                 }}
               >
                 <tab.icon className="w-4 h-4" />
@@ -264,11 +263,11 @@ const AdminDashboard: React.FC = () => {
                     className="text-xs px-1.5 py-0.5 rounded-full"
                     style={{
                       background: 'urgent' in tab && tab.urgent
-                        ? 'rgba(239,68,68,0.3)'
+                        ? 'rgba(239,68,68,0.15)'
                         : active
-                        ? 'rgba(99,102,241,0.4)'
-                        : 'rgba(255,255,255,0.1)',
-                      color: 'urgent' in tab && tab.urgent ? '#fca5a5' : active ? '#c7d2fe' : 'rgba(255,255,255,0.4)',
+                        ? 'rgba(15,76,117,0.15)'
+                        : 'rgba(15,76,117,0.08)',
+                      color: 'urgent' in tab && tab.urgent ? '#ef4444' : active ? '#0F4C75' : '#636E72',
                     }}
                   >
                     {tab.count}
@@ -283,8 +282,8 @@ const AdminDashboard: React.FC = () => {
         {selectedTab === 'test-status' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white">All Test Assignments</h2>
-              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>All Test Assignments</h2>
+              <span className="text-xs" style={{ color: '#636E72' }}>
                 {mockTestAssignments.length} total
               </span>
             </div>
@@ -300,17 +299,20 @@ const AdminDashboard: React.FC = () => {
                   onClick={() => navigate(`/admin/test-status/${assignment.testId}`)}
                   className="rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-200"
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.7)',
+                    border: '1px solid rgba(15,76,117,0.12)',
                     backdropFilter: 'blur(12px)',
+                    boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)';
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
                     (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.1)';
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
                     (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,76,117,0.06)';
                   }}
                 >
                   {/* Left accent */}
@@ -323,7 +325,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <h3 className="text-white text-sm">{assignment.testName}</h3>
+                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{assignment.testName}</h3>
                           <span
                             className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
                             style={{
@@ -339,12 +341,12 @@ const AdminDashboard: React.FC = () => {
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-3">
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Batch</div>
-                            <div style={{ color: 'rgba(255,255,255,0.75)' }}>{assignment.batchName}</div>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Batch</div>
+                            <div style={{ color: '#2D3436' }}>{assignment.batchName}</div>
                           </div>
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Scheduled</div>
-                            <div style={{ color: 'rgba(255,255,255,0.75)' }}>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Scheduled</div>
+                            <div style={{ color: '#2D3436' }}>
                               {new Date(assignment.scheduledDate).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
@@ -354,20 +356,20 @@ const AdminDashboard: React.FC = () => {
                             </div>
                           </div>
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Progress</div>
-                            <div style={{ color: 'rgba(255,255,255,0.75)' }}>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Progress</div>
+                            <div style={{ color: '#2D3436' }}>
                               {assignment.completedCount}/{assignment.totalCandidates} candidates
                             </div>
                           </div>
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Avg Score</div>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Avg Score</div>
                             <div
                               style={{
                                 color: assignment.averageScore
                                   ? assignment.averageScore >= 80
                                     ? '#10b981'
                                     : '#f59e0b'
-                                  : 'rgba(255,255,255,0.4)',
+                                  : '#636E72',
                               }}
                             >
                               {assignment.averageScore ? `${assignment.averageScore}%` : '—'}
@@ -376,7 +378,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Progress bar */}
-                        <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                        <div className="h-1.5 rounded-full" style={{ background: 'rgba(15,76,117,0.12)' }}>
                           <div
                             className="h-full rounded-full transition-all duration-700"
                             style={{
@@ -396,7 +398,7 @@ const AdminDashboard: React.FC = () => {
 
                       <ArrowUpRight
                         className="w-4 h-4 flex-shrink-0 mt-1"
-                        style={{ color: 'rgba(255,255,255,0.2)' }}
+                        style={{ color: '#636E72' }}
                       />
                     </div>
                   </div>
@@ -410,8 +412,8 @@ const AdminDashboard: React.FC = () => {
         {selectedTab === 'upcoming' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white">Scheduled Tests</h2>
-              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Scheduled Tests</h2>
+              <span className="text-xs" style={{ color: '#636E72' }}>
                 {upcomingTests.length} upcoming
               </span>
             </div>
@@ -426,9 +428,10 @@ const AdminDashboard: React.FC = () => {
                   key={test.id}
                   className="rounded-2xl p-5 relative overflow-hidden transition-all duration-200"
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.7)',
+                    border: '1px solid rgba(15,76,117,0.12)',
                     backdropFilter: 'blur(12px)',
+                    boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
                   }}
                 >
                   {/* Left accent */}
@@ -440,7 +443,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="pl-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-3">
-                        <h3 className="text-white text-sm">{test.testName}</h3>
+                        <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{test.testName}</h3>
                         {daysUntil <= 3 && (
                           <span
                             className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
@@ -458,15 +461,15 @@ const AdminDashboard: React.FC = () => {
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                         <div>
-                          <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Batch</div>
-                          <div className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                          <div className="mb-0.5" style={{ color: '#636E72' }}>Batch</div>
+                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
                             <Users className="w-3 h-3" />
                             {test.batchName}
                           </div>
                         </div>
                         <div>
-                          <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Date & Time</div>
-                          <div className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                          <div className="mb-0.5" style={{ color: '#636E72' }}>Date & Time</div>
+                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
                             <Calendar className="w-3 h-3" />
                             {scheduledDate.toLocaleDateString('en-US', {
                               month: 'short',
@@ -477,15 +480,15 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div>
-                          <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Duration</div>
-                          <div className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                          <div className="mb-0.5" style={{ color: '#636E72' }}>Duration</div>
+                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
                             <Clock className="w-3 h-3" />
                             {test.duration} min
                           </div>
                         </div>
                         <div>
-                          <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Candidates</div>
-                          <div className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                          <div className="mb-0.5" style={{ color: '#636E72' }}>Candidates</div>
+                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
                             <Users className="w-3 h-3" />
                             {test.totalCandidates}
                           </div>
@@ -502,8 +505,8 @@ const AdminDashboard: React.FC = () => {
                           border: '1px solid rgba(139,92,246,0.2)',
                         }}
                       >
-                        <div className="text-xl text-white leading-none">{daysUntil}</div>
-                        <div className="text-xs mt-0.5" style={{ color: 'rgba(196,181,253,0.7)' }}>
+                        <div className="text-xl leading-none" style={{ color: '#0F4C75', fontWeight: 600 }}>{daysUntil}</div>
+                        <div className="text-xs mt-0.5" style={{ color: '#636E72' }}>
                           days
                         </div>
                       </div>
@@ -537,7 +540,7 @@ const AdminDashboard: React.FC = () => {
         {selectedTab === 'assess' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white">Tests Requiring Manual Review</h2>
+              <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Tests Requiring Manual Review</h2>
               {pendingReviews > 0 && (
                 <span
                   className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
@@ -563,22 +566,25 @@ const AdminDashboard: React.FC = () => {
                     onClick={() => navigate(`/admin/assess/${result.testId}/${result.candidateId}`)}
                     className="rounded-2xl p-5 cursor-pointer transition-all duration-200"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'rgba(255,255,255,0.7)',
+                      border: '1px solid rgba(15,76,117,0.12)',
+                      boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)';
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
                       (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.1)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
                       (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,76,117,0.06)';
                     }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <h3 className="text-white text-sm">React Fundamentals Assessment</h3>
+                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>React Fundamentals Assessment</h3>
                           <span
                             className="text-xs px-2 py-0.5 rounded-full"
                             style={{
@@ -593,18 +599,18 @@ const AdminDashboard: React.FC = () => {
 
                         <div className="grid grid-cols-3 gap-4 text-xs">
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Candidate</div>
-                            <div style={{ color: 'rgba(255,255,255,0.75)' }}>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Candidate</div>
+                            <div style={{ color: '#2D3436' }}>
                               {result.candidateId === 'c1' ? 'Sarah Chen' : 'Michael Brown'}
                             </div>
                           </div>
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Batch</div>
-                            <div style={{ color: 'rgba(255,255,255,0.75)' }}>Frontend Team Q2 2026</div>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Batch</div>
+                            <div style={{ color: '#2D3436' }}>Frontend Team Q2 2026</div>
                           </div>
                           <div>
-                            <div className="mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Submitted</div>
-                            <div style={{ color: 'rgba(255,255,255,0.75)' }}>
+                            <div className="mb-0.5" style={{ color: '#636E72' }}>Submitted</div>
+                            <div style={{ color: '#2D3436' }}>
                               {new Date(result.completedAt).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
@@ -613,7 +619,7 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <ArrowUpRight className="w-4 h-4 ml-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.2)' }} />
+                      <ArrowUpRight className="w-4 h-4 ml-4 flex-shrink-0" style={{ color: '#636E72' }} />
                     </div>
                   </div>
                 );
@@ -627,7 +633,7 @@ const AdminDashboard: React.FC = () => {
             {/* Question Banks */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white">Question Banks</h2>
+                <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Question Banks</h2>
                 <button
                   onClick={() => navigate('/admin/questions/create')}
                   className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-all duration-200"
@@ -663,16 +669,19 @@ const AdminDashboard: React.FC = () => {
                       onClick={() => navigate(`/admin/questions/${batch.id}`)}
                       className="rounded-2xl p-5 cursor-pointer transition-all duration-200"
                       style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(255,255,255,0.7)',
+                        border: '1px solid rgba(15,76,117,0.12)',
+                        boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
                       }}
                       onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)';
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
                         (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.1)';
                       }}
                       onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
                         (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,76,117,0.06)';
                       }}
                     >
                       <div className="flex items-start justify-between mb-3">
@@ -694,12 +703,12 @@ const AdminDashboard: React.FC = () => {
                         </span>
                       </div>
 
-                      <h3 className="text-white text-sm mb-1">{batch.name}</h3>
-                      <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      <h3 className="text-sm mb-1" style={{ color: '#0F4C75', fontWeight: 600 }}>{batch.name}</h3>
+                      <p className="text-xs mb-3" style={{ color: '#636E72' }}>
                         {batch.domain} · {batch.topic}
                       </p>
 
-                      <div className="flex items-center justify-between text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      <div className="flex items-center justify-between text-xs" style={{ color: '#636E72' }}>
                         <span>{batch.questionCount} questions</span>
                         <span>Last used {new Date(batch.lastUsed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                       </div>
@@ -712,7 +721,7 @@ const AdminDashboard: React.FC = () => {
             {/* Candidate Batches */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white">Candidate Batches</h2>
+                <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Candidate Batches</h2>
                 <button
                   onClick={() => navigate('/admin/batch/new')}
                   className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-all duration-200"
@@ -739,14 +748,15 @@ const AdminDashboard: React.FC = () => {
                     key={batch.id}
                     className="rounded-2xl p-5 transition-all duration-200"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'rgba(255,255,255,0.7)',
+                      border: '1px solid rgba(15,76,117,0.12)',
+                      boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-white text-sm">{batch.name}</h3>
+                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{batch.name}</h3>
                           {batch.createdBy === user?.email && (
                             <span
                               className="text-xs px-2 py-0.5 rounded-full"
@@ -772,7 +782,7 @@ const AdminDashboard: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-5 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        <div className="flex items-center gap-5 text-xs" style={{ color: '#636E72' }}>
                           <span className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
                             {batch.candidateCount} candidates

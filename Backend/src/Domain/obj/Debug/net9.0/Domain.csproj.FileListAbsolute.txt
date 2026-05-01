@@ -1,0 +1,12 @@
+d:\TestModule\APEX\Backend\src\Domain\bin\Debug\net9.0\Domain.deps.json
+d:\TestModule\APEX\Backend\src\Domain\bin\Debug\net9.0\Domain.dll
+d:\TestModule\APEX\Backend\src\Domain\bin\Debug\net9.0\Domain.pdb
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.GeneratedMSBuildEditorConfig.editorconfig
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.AssemblyInfoInputs.cache
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.AssemblyInfo.cs
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.csproj.CoreCompileInputs.cache
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.sourcelink.json
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.dll
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\refint\Domain.dll
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.pdb
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\ref\Domain.dll

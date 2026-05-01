@@ -1,0 +1,16 @@
+d:\TestModule\APEX\Backend\src\Application\bin\Debug\net9.0\Application.deps.json
+d:\TestModule\APEX\Backend\src\Application\bin\Debug\net9.0\Application.dll
+d:\TestModule\APEX\Backend\src\Application\bin\Debug\net9.0\Application.pdb
+d:\TestModule\APEX\Backend\src\Application\bin\Debug\net9.0\Domain.dll
+d:\TestModule\APEX\Backend\src\Application\bin\Debug\net9.0\Domain.pdb
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.csproj.AssemblyReference.cache
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.GeneratedMSBuildEditorConfig.editorconfig
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.AssemblyInfoInputs.cache
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.AssemblyInfo.cs
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.csproj.CoreCompileInputs.cache
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.sourcelink.json
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Applicat.44B5EDA2.Up2Date
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.dll
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\refint\Application.dll
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\Application.pdb
+d:\TestModule\APEX\Backend\src\Application\obj\Debug\net9.0\ref\Application.dll
