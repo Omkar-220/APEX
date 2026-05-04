@@ -1,190 +1,296 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router';
-import { Upload, UserPlus, UserMinus, Share2, AlertCircle, Download } from 'lucide-react';
-import { mockCandidateBatches } from '../data/mockData';
-import DashboardLayout from './DashboardLayout';
+import { useParams, useNavigate } from 'react-router';
+import { Upload, UserPlus, UserMinus, ArrowLeft, Save, Plus, X, Shield } from 'lucide-react';
+import { mockCandidateBatches, type Difficulty } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import DashboardLayout from './DashboardLayout';
+import { toast } from 'sonner';
 
 const BatchEditor: React.FC = () => {
   const { batchId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const batch = mockCandidateBatches.find((b) => b.id === batchId);
 
-  const [candidates, setCandidates] = useState([
-    'alex.johnson@company.com',
-    'sarah.chen@company.com',
-    'michael.brown@company.com',
-    'emma.davis@company.com',
-  ]);
+  const isNew = batchId === 'new';
+  const existing = isNew ? null : mockCandidateBatches.find((b) => b.id === batchId);
+
+  // Batch metadata
+  const [name, setName] = useState(existing?.name || '');
+  const [domain, setDomain] = useState(existing?.domain || '');
+  const [topic, setTopic] = useState(existing?.topic || '');
+  const [difficulty, setDifficulty] = useState<Difficulty>(existing?.difficulty || 'Intermediate');
+
+  // Candidates (email-based on frontend)
+  const [candidates, setCandidates] = useState<string[]>(existing?.candidates || []);
   const [newEmail, setNewEmail] = useState('');
-  const [coOwnerEmail, setCoOwnerEmail] = useState('');
+
+  // Admins — all have equal ownership
+  const [admins, setAdmins] = useState<string[]>(
+    existing?.adminEmails || (user?.email ? [user.email] : [])
+  );
+  const [newAdminEmail, setNewAdminEmail] = useState('');
 
   const handleAddCandidate = () => {
-    if (newEmail && newEmail.includes('@')) {
-      setCandidates([...candidates, newEmail]);
-      setNewEmail('');
-    }
+    const email = newEmail.trim().toLowerCase();
+    if (!email.includes('@')) { toast.error('Invalid email'); return; }
+    if (candidates.includes(email)) { toast.error('Candidate already in batch'); return; }
+    setCandidates([...candidates, email]);
+    setNewEmail('');
   };
 
-  const handleRemoveCandidate = (email: string) => {
-    setCandidates(candidates.filter((c) => c !== email));
+  const handleAddAdmin = () => {
+    const email = newAdminEmail.trim().toLowerCase();
+    if (!email.includes('@')) { toast.error('Invalid email'); return; }
+    if (admins.includes(email)) { toast.error('Already an admin'); return; }
+    setAdmins([...admins, email]);
+    setNewAdminEmail('');
   };
 
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      alert(`File "${file.name}" uploaded successfully. Processing...`);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const lines = (ev.target?.result as string).split('\n').map((l) => l.trim().toLowerCase()).filter((l) => l.includes('@'));
+      const newOnes = lines.filter((e) => !candidates.includes(e));
+      setCandidates([...candidates, ...newOnes]);
+      toast.success(`Added ${newOnes.length} candidates`);
+    };
+    reader.readAsText(file);
   };
 
-  const handleShareBatch = () => {
-    if (coOwnerEmail && coOwnerEmail.includes('@')) {
-      alert(`Batch shared with ${coOwnerEmail} as co-owner. They can view and edit but cannot delete the batch.`);
-      setCoOwnerEmail('');
-    }
+  const handleSave = () => {
+    if (!name.trim()) { toast.error('Batch name is required'); return; }
+    if (admins.length === 0) { toast.error('At least one admin is required'); return; }
+    toast.success(isNew ? `Batch "${name}" created` : `Batch "${name}" updated`);
+    setTimeout(() => navigate('/admin/batches'), 1500);
   };
 
-  const isCoOwner = user?.role === 'co-owner';
+  const inputStyle = {
+    background: 'rgba(255,255,255,0.8)',
+    border: '1px solid rgba(15,76,117,0.2)',
+    color: '#2D3436',
+  };
+
+  const cardStyle = {
+    background: 'rgba(255,255,255,0.7)',
+    border: '1px solid rgba(15,76,117,0.12)',
+    boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
+  };
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-4xl mx-auto">
+        <button
+          onClick={() => navigate('/admin/batches')}
+          className="flex items-center gap-2 mb-6 text-sm transition-colors"
+          style={{ color: '#636E72' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#0F4C75')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#636E72')}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Batches
+        </button>
+
         <div className="mb-8">
-          <h1 className="text-3xl mb-2 text-gray-900 dark:text-white">Edit Candidate Batch</h1>
-          <p className="text-gray-600 dark:text-gray-400">{batch?.name}</p>
+          <h1 className="text-2xl mb-1" style={{ color: '#0F4C75', fontWeight: 600 }}>
+            {isNew ? 'Create Candidate Batch' : `Edit — ${existing?.name}`}
+          </h1>
+          <p className="text-sm" style={{ color: '#636E72' }}>
+            All admins listed have equal management privileges over this batch.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Add Candidate */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h2 className="text-xl mb-4 text-gray-900 dark:text-white">Add Candidates</h2>
-              <div className="flex gap-3 mb-4">
-                <input
-                  type="email"
-                  placeholder="candidate@company.com"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCandidate()}
-                  className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                  onClick={handleAddCandidate}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Add
-                </button>
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <label className="flex items-center justify-center w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                  <Upload className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Bulk Upload from CSV/Excel
-                  </span>
-                  <input type="file" accept=".csv,.xlsx" onChange={handleBulkUpload} className="hidden" />
+        <div className="space-y-6">
+          {/* Batch Info */}
+          <div className="rounded-2xl p-6" style={cardStyle}>
+            <h2 className="text-sm font-semibold mb-4" style={{ color: '#0F4C75' }}>Batch Details</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>
+                  Batch Name <span style={{ color: '#E07A5F' }}>*</span>
                 </label>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 text-center">
-                  Upload a file with email addresses (one per row)
-                </p>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Frontend Team Q3 2026"
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  style={inputStyle}
+                />
               </div>
-            </div>
-
-            {/* Candidate List */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h2 className="text-xl mb-4 text-gray-900 dark:text-white">
-                Candidates ({candidates.length})
-              </h2>
-              <div className="space-y-2">
-                {candidates.map((email) => (
-                  <div
-                    key={email}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                  >
-                    <span className="text-gray-900 dark:text-white">{email}</span>
-                    <button
-                      onClick={() => handleRemoveCandidate(email)}
-                      disabled={isCoOwner}
-                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>Domain</label>
+                <input
+                  type="text"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="e.g., Frontend Development"
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>Topic</label>
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., React.js"
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>Difficulty</label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+                  className="w-full px-4 py-3 rounded-xl text-sm appearance-none"
+                  style={inputStyle}
+                >
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Share Batch */}
-            {!isCoOwner && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-                <h2 className="text-lg mb-4 text-gray-900 dark:text-white">Share Batch</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Assign a co-owner who can view and edit this batch but cannot delete it.
-                </p>
-                <input
-                  type="email"
-                  placeholder="coowner@company.com"
-                  value={coOwnerEmail}
-                  onChange={(e) => setCoOwnerEmail(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-                />
-                <button
-                  onClick={handleShareBatch}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+          {/* Admins */}
+          <div className="rounded-2xl p-6" style={cardStyle}>
+            <div className="flex items-center gap-2 mb-4">
+              <Shield className="w-4 h-4" style={{ color: '#0F4C75' }} />
+              <h2 className="text-sm font-semibold" style={{ color: '#0F4C75' }}>
+                Batch Admins ({admins.length})
+              </h2>
+            </div>
+            <p className="text-xs mb-4" style={{ color: '#636E72' }}>
+              All admins have equal ownership — they can add/remove candidates and manage tests for this batch.
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="email"
+                placeholder="admin@company.com"
+                value={newAdminEmail}
+                onChange={(e) => setNewAdminEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddAdmin()}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm"
+                style={inputStyle}
+              />
+              <button
+                onClick={handleAddAdmin}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm text-white"
+                style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {admins.map((email) => (
+                <div
+                  key={email}
+                  className="flex items-center justify-between px-4 py-2.5 rounded-xl"
+                  style={{ background: 'rgba(15,76,117,0.04)', border: '1px solid rgba(15,76,117,0.08)' }}
                 >
-                  <Share2 className="w-4 h-4" />
-                  Share as Co-owner
-                </button>
-              </div>
-            )}
-
-            {/* Info */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-blue-900 dark:text-blue-400 mb-1">Batch Management</h3>
-                  <p className="text-sm text-blue-800 dark:text-blue-500">
-                    {isCoOwner
-                      ? 'As a co-owner, you can add/edit candidates but cannot delete this batch.'
-                      : 'You are the owner of this batch. Share access with co-owners to collaborate.'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5" style={{ color: '#1B9AAA' }} />
+                    <span className="text-sm" style={{ color: '#2D3436' }}>{email}</span>
+                    {email === user?.email && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(15,76,117,0.1)', color: '#0F4C75' }}>
+                        You
+                      </span>
+                    )}
+                  </div>
+                  {admins.length > 1 && (
+                    <button onClick={() => setAdmins(admins.filter((a) => a !== email))}>
+                      <X className="w-4 h-4" style={{ color: '#E07A5F' }} />
+                    </button>
+                  )}
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Candidates */}
+          <div className="rounded-2xl p-6" style={cardStyle}>
+            <h2 className="text-sm font-semibold mb-4" style={{ color: '#0F4C75' }}>
+              Candidates ({candidates.length})
+            </h2>
+
+            <div className="flex gap-2 mb-3">
+              <input
+                type="email"
+                placeholder="candidate@company.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCandidate()}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm"
+                style={inputStyle}
+              />
+              <button
+                onClick={handleAddCandidate}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm text-white"
+                style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}
+              >
+                <UserPlus className="w-4 h-4" />
+                Add
+              </button>
             </div>
 
-            {/* Stats */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg mb-4 text-gray-900 dark:text-white">Batch Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Total Candidates</span>
-                  <span className="text-gray-900 dark:text-white">{candidates.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Created</span>
-                  <span className="text-gray-900 dark:text-white">
-                    {batch?.createdOn ? new Date(batch.createdOn).toLocaleDateString() : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Role</span>
-                  <span className="text-gray-900 dark:text-white capitalize">
-                    {isCoOwner ? 'Co-owner' : 'Owner'}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <label
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-sm cursor-pointer mb-4 transition-all"
+              style={{
+                background: 'rgba(27,154,170,0.06)',
+                border: '1px dashed rgba(27,154,170,0.3)',
+                color: '#1B9AAA',
+              }}
+            >
+              <Upload className="w-4 h-4" />
+              Bulk Upload from CSV (one email per row)
+              <input type="file" accept=".csv,.txt" onChange={handleBulkUpload} className="hidden" />
+            </label>
 
-            {/* Download Template */}
-            <button className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
-              <Download className="w-4 h-4" />
-              Download CSV Template
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {candidates.map((email) => (
+                <div
+                  key={email}
+                  className="flex items-center justify-between px-4 py-2.5 rounded-xl"
+                  style={{ background: 'rgba(15,76,117,0.03)', border: '1px solid rgba(15,76,117,0.07)' }}
+                >
+                  <span className="text-sm" style={{ color: '#2D3436' }}>{email}</span>
+                  <button onClick={() => setCandidates(candidates.filter((c) => c !== email))}>
+                    <UserMinus className="w-4 h-4" style={{ color: '#E07A5F' }} />
+                  </button>
+                </div>
+              ))}
+              {candidates.length === 0 && (
+                <p className="text-xs text-center py-4" style={{ color: '#636E72' }}>
+                  No candidates added yet
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3">
+            <button
+              onClick={() => navigate('/admin/batches')}
+              className="px-5 py-2.5 rounded-xl text-sm transition-all"
+              style={{ background: 'rgba(15,76,117,0.06)', border: '1px solid rgba(15,76,117,0.12)', color: '#636E72' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm text-white"
+              style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}
+            >
+              <Save className="w-4 h-4" />
+              {isNew ? 'Create Batch' : 'Save Changes'}
             </button>
           </div>
         </div>

@@ -1,14 +1,12 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type UserRole = 'candidate' | 'batch-admin' | 'shared-admin' | 'root-admin';
+export type UserRole = 'Candidate' | 'Admin' | 'SuperAdmin';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  profilePic: string;
   role: UserRole;
-  managedBatches?: string[]; // IDs of batches this user manages
 }
 
 interface AuthContextType {
@@ -23,20 +21,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
 
   const login = (role: UserRole) => {
-    // Simulate Office 365 SSO login
+    // Placeholder — will be replaced with real MSAL/Entra ID SSO flow
+    // Role is fetched from DB via GET /me after JWT validation, not from JWT claims
     setUser({
-      id: '1',
+      id: '00000000-0000-0000-0000-000000000001',
       name: 'Alex Johnson',
       email: 'alex.johnson@company.com',
-      profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
       role,
-      managedBatches: role === 'batch-admin' ? ['cb-1'] : role === 'root-admin' ? undefined : ['cb-1'],
     });
   };
 
-  const logout = () => {
-    setUser(null);
-  };
+  const logout = () => setUser(null);
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
@@ -47,8 +42,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

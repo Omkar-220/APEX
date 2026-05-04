@@ -26,29 +26,36 @@ import {
 import DashboardLayout from './DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 
-const statusConfig = {
-  scheduled: {
-    label: 'Scheduled',
-    color: '#8b5cf6',
-    bg: 'rgba(139,92,246,0.15)',
-    border: 'rgba(139,92,246,0.25)',
-    icon: Circle,
-  },
-  'in-progress': {
-    label: 'In Progress',
-    color: '#3b82f6',
-    bg: 'rgba(59,130,246,0.15)',
-    border: 'rgba(59,130,246,0.25)',
-    icon: PlayCircle,
-  },
-  completed: {
-    label: 'Completed',
-    color: '#10b981',
-    bg: 'rgba(16,185,129,0.15)',
-    border: 'rgba(16,185,129,0.25)',
-    icon: CheckCircle2,
-  },
-};
+  const statusConfig = {
+    Pending: {
+      label: 'Pending',
+      color: '#8b5cf6',
+      bg: 'rgba(139,92,246,0.15)',
+      border: 'rgba(139,92,246,0.25)',
+      icon: Circle,
+    },
+    Active: {
+      label: 'Active',
+      color: '#3b82f6',
+      bg: 'rgba(59,130,246,0.15)',
+      border: 'rgba(59,130,246,0.25)',
+      icon: PlayCircle,
+    },
+    Completed: {
+      label: 'Completed',
+      color: '#10b981',
+      bg: 'rgba(16,185,129,0.15)',
+      border: 'rgba(16,185,129,0.25)',
+      icon: CheckCircle2,
+    },
+    Expired: {
+      label: 'Expired',
+      color: '#ef4444',
+      bg: 'rgba(239,68,68,0.15)',
+      border: 'rgba(239,68,68,0.25)',
+      icon: Circle,
+    },
+  };
 
 const reviewStatusConfig = {
   pending: { label: 'Pending Review', color: '#ef4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.25)' },
@@ -126,17 +133,15 @@ const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState<'test-status' | 'upcoming' | 'assess' | 'overview'>('test-status');
 
-  const isRootAdmin = user?.role === 'root-admin';
+  const isSuperAdmin = user?.role === 'SuperAdmin';
   const pendingReviews = mockTestResults.filter((r) => r.needsManualReview && r.reviewStatus === 'pending').length;
 
-  const visibleBatches = isRootAdmin
+  const visibleBatches = isSuperAdmin
     ? mockCandidateBatches
-    : mockCandidateBatches.filter(
-        (b) => b.createdBy === user?.email || b.sharedAdmins.includes(user?.email || '')
-      );
+    : mockCandidateBatches.filter((b) => b.adminEmails.includes(user?.email || ''));
 
-  const upcomingTests = mockTestAssignments.filter((t) => t.status === 'scheduled');
-  const inProgressTests = mockTestAssignments.filter((t) => t.status === 'in-progress');
+  const upcomingTests = mockTestAssignments.filter((t) => t.status === 'Pending');
+  const inProgressTests = mockTestAssignments.filter((t) => t.status === 'Active');
 
   const tabs = [
     { id: 'test-status', label: 'Assignments & Status', icon: LayoutGrid },
@@ -155,19 +160,19 @@ const AdminDashboard: React.FC = () => {
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
-                  background: isRootAdmin
+                  background: isSuperAdmin
                     ? 'linear-gradient(135deg, #f59e0b, #ef4444)'
                     : 'linear-gradient(135deg, #8b5cf6, #6366f1)',
                 }}
               >
-                {isRootAdmin ? '👑' : '⚙️'}
+                {isSuperAdmin ? '👑' : '⚙️'}
               </div>
               <h1 style={{ fontSize: '1.4rem', color: '#0F4C75' }}>
-                {isRootAdmin ? 'Root Admin' : 'Batch Admin'} Dashboard
+                {isSuperAdmin ? 'Super Admin' : 'Admin'} Dashboard
               </h1>
             </div>
             <p className="text-xs pl-1" style={{ color: '#636E72' }}>
-              {isRootAdmin ? 'Full platform control & oversight' : 'Manage your assigned batches & tests'}
+              {isSuperAdmin ? 'Full platform control & oversight' : 'Manage your assigned batches & tests'}
             </p>
           </div>
           <button
@@ -325,7 +330,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{assignment.testName}</h3>
+                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{assignment.testTitle}</h3>
                           <span
                             className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
                             style={{
@@ -347,7 +352,7 @@ const AdminDashboard: React.FC = () => {
                           <div>
                             <div className="mb-0.5" style={{ color: '#636E72' }}>Scheduled</div>
                             <div style={{ color: '#2D3436' }}>
-                              {new Date(assignment.scheduledDate).toLocaleDateString('en-US', {
+                              {new Date(assignment.scheduledStart).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
                                 hour: '2-digit',
@@ -420,7 +425,7 @@ const AdminDashboard: React.FC = () => {
 
             {upcomingTests.map((test) => {
               const domainColor = test.domain ? domainColors[test.domain] || '#6366f1' : '#6366f1';
-              const scheduledDate = new Date(test.scheduledDate);
+              const scheduledDate = new Date(test.scheduledStart);
               const daysUntil = Math.ceil((scheduledDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
               return (
@@ -443,7 +448,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="pl-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-3">
-                        <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{test.testName}</h3>
+                        <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{test.testTitle}</h3>
                         {daysUntil <= 3 && (
                           <span
                             className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
@@ -757,28 +762,16 @@ const AdminDashboard: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{batch.name}</h3>
-                          {batch.createdBy === user?.email && (
+                          {batch.adminEmails.includes(user?.email || '') && (
                             <span
                               className="text-xs px-2 py-0.5 rounded-full"
                               style={{
-                                background: 'rgba(139,92,246,0.15)',
-                                color: '#c4b5fd',
-                                border: '1px solid rgba(139,92,246,0.25)',
+                                background: 'rgba(15,76,117,0.1)',
+                                color: '#0F4C75',
+                                border: '1px solid rgba(15,76,117,0.2)',
                               }}
                             >
-                              Owner
-                            </span>
-                          )}
-                          {batch.sharedAdmins.includes(user?.email || '') && (
-                            <span
-                              className="text-xs px-2 py-0.5 rounded-full"
-                              style={{
-                                background: 'rgba(16,185,129,0.15)',
-                                color: '#6ee7b7',
-                                border: '1px solid rgba(16,185,129,0.25)',
-                              }}
-                            >
-                              Shared Admin
+                              Admin
                             </span>
                           )}
                         </div>
@@ -787,10 +780,8 @@ const AdminDashboard: React.FC = () => {
                             <Users className="w-3 h-3" />
                             {batch.candidateCount} candidates
                           </span>
-                          <span>Created {new Date(batch.createdOn).toLocaleDateString()}</span>
-                          {batch.sharedAdmins.length > 0 && (
-                            <span>{batch.sharedAdmins.length} co-admin(s)</span>
-                          )}
+                          <span>Created {new Date(batch.createdAt).toLocaleDateString()}</span>
+                          <span>{batch.adminEmails.length} admin(s)</span>
                         </div>
                       </div>
                       <button

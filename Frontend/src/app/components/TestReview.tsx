@@ -1,18 +1,18 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { CheckCircle, XCircle, Lock } from 'lucide-react';
-import { mockTests, mockQuestionBatches } from '../data/mockData';
+import { mockExamTests, mockExamQuestionBatches } from '../data/mockData';
 import DashboardLayout from './DashboardLayout';
 
 const TestReview: React.FC = () => {
   const { testId } = useParams();
   const navigate = useNavigate();
 
-  const test = mockTests.find((t) => t.id === testId);
-  const questionBatch = mockQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
+  const test = mockExamTests.find((t) => t.id === testId);
+  const questionBatch = mockExamQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
   const questions = questionBatch?.questions || [];
 
-  const candidateAnswers: Record<string, number> = { q1: 1, q2: 1, q3: 0 };
+  const candidateAnswers: Record<string, number> = { eq1: 1, eq2: 1, eq3: 1, eq4: 1, eq5: 0, eq6: 0 };
 
   return (
     <DashboardLayout>
@@ -29,7 +29,7 @@ const TestReview: React.FC = () => {
             <div>
               <h1 className="text-2xl mb-1">Test Review</h1>
               <p style={{ color: 'rgba(255,255,255,0.75)' }}>{test?.title}</p>
-              <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              <p style={{ color: 'rgba(255,255,255,0.55)' }}>
                 Completed {test?.scheduledDate ? new Date(test.scheduledDate).toLocaleDateString() : ''}
               </p>
             </div>
@@ -97,7 +97,7 @@ const TestReview: React.FC = () => {
                     <p className="mb-4" style={{ color: '#2D3436' }}>{question.text}</p>
 
                     <div className="space-y-2">
-                      {question.options.map((option, optionIdx) => {
+                      {question.options.filter(o => o !== '').map((option, optionIdx) => {
                         const isCorrectOption = optionIdx === question.correctAnswer;
                         const isCandidateAnswer = optionIdx === candidateAnswer;
                         return (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, CheckCircle, XCircle, Save } from 'lucide-react';
-import { mockTests, mockQuestionBatches, mockTestResults } from '../data/mockData';
+import { mockExamTests, mockExamQuestionBatches, mockExamTestResults } from '../data/mockData';
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'sonner';
 
@@ -9,9 +9,9 @@ const AssessTest: React.FC = () => {
   const { testId, candidateId } = useParams();
   const navigate = useNavigate();
 
-  const test = mockTests.find((t) => t.id === testId);
-  const questionBatch = mockQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
-  const testResult = mockTestResults.find((r) => r.testId === testId && r.candidateId === candidateId);
+  const test = mockExamTests.find((t) => t.id === testId);
+  const questionBatch = mockExamQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
+  const testResult = mockExamTestResults.find((r) => r.testId === testId && r.candidateId === candidateId);
 
   const [scores, setScores] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});

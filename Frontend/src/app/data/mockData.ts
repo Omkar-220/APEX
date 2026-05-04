@@ -1,103 +1,61 @@
-export interface Question {
+// ─── Component-facing types (used by TestInterface, TestReview, AssessTest) ───
+
+export interface QuestionOption {
+  label: 'A' | 'B' | 'C' | 'D';
+  text: string;
+}
+
+export interface ExamQuestion {
   id: string;
   text: string;
-  options: string[];
-  correctAnswer?: number; // undefined for descriptive questions
-  difficulty: 'easy' | 'medium' | 'hard';
+  options: string[]; // index 0=A, 1=B, 2=C, 3=D
+  correctAnswer: number; // index into options[]
   type: 'mcq' | 'descriptive';
-  gradingType: 'auto-graded' | 'manual-review';
   weightage: number;
 }
 
-export interface QuestionBatch {
-  id: string;
-  name: string;
-  domain: string;
-  topic: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  questionCount: number;
-  lastUsed: string;
-  createdOn: string;
-  createdBy: string;
-  questions: Question[];
-}
-
-export interface CandidateBatch {
-  id: string;
-  name: string;
-  candidateCount: number;
-  createdOn: string;
-  createdBy: string; // Batch Admin
-  candidates: string[];
-  sharedAdmins: string[]; // Other admins who can manage this batch
-}
-
-export interface Test {
+export interface ExamTest {
   id: string;
   title: string;
+  description?: string;
+  durationMinutes: number;
+  passingScorePercent: number;
   questionBatchId: string;
-  candidateBatchId?: string;
   scheduledDate: string;
-  duration: number;
-  status: 'upcoming' | 'in-progress' | 'completed' | 'scheduled';
-  score?: number;
+  score?: number;        // percentage, set after completion
   totalQuestions?: number;
-  batchName?: string;
-  domain?: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
-export interface CandidateTestStatus {
+export interface ExamQuestionBatch {
+  id: string;
+  name: string;
+  questions: ExamQuestion[];
+}
+
+export interface ExamTestResult {
+  sessionId: string;
+  testId: string;
   candidateId: string;
-  candidateName: string;
   candidateEmail: string;
-  testId: string;
-  status: 'not-started' | 'in-progress' | 'finished' | 'ended-by-admin';
-  score?: number;
-  startedAt?: string;
-  finishedAt?: string;
-}
-
-export interface TestResult {
-  testId: string;
-  candidateId: string;
-  answers: Record<string, number | string>; // question ID -> answer (index or text)
-  score?: number;
+  testTitle: string;
+  score: number;         // raw points (MCQ auto-graded)
+  totalWeightage: number;
+  percentage: number;
+  passed: boolean;
   completedAt: string;
   needsManualReview: boolean;
-  reviewedBy?: string;
-  reviewStatus: 'pending' | 'in-review' | 'completed';
+  answers: Record<string, string | number>; // questionId -> candidate answer
 }
 
-export interface TestAssignment {
-  id: string;
-  testId: string;
-  testName: string;
-  batchId: string;
-  batchName: string;
-  scheduledDate: string;
-  status: 'scheduled' | 'in-progress' | 'completed';
-  totalCandidates: number;
-  completedCount: number;
-  averageScore?: number;
-  domain?: string;
-  duration?: number;
-}
+// ─── Exam mock data ────────────────────────────────────────────────────────────
 
-export const mockQuestionBatches: QuestionBatch[] = [
+export const mockExamQuestionBatches: ExamQuestionBatch[] = [
   {
-    id: 'qb-1',
+    id: 'eqb-1',
     name: 'React Fundamentals',
-    domain: 'Frontend Development',
-    topic: 'React.js',
-    difficulty: 'medium',
-    questionCount: 20,
-    lastUsed: '2026-04-30',
-    createdOn: '2026-03-01',
-    createdBy: 'admin@company.com',
     questions: [
       {
-        id: 'q1',
+        id: 'eq1',
         text: 'What is the primary purpose of React hooks?',
         options: [
           'To replace class components entirely',
@@ -106,29 +64,368 @@ export const mockQuestionBatches: QuestionBatch[] = [
           'To enable server-side rendering',
         ],
         correctAnswer: 1,
-        difficulty: 'medium',
         type: 'mcq',
-        gradingType: 'auto-graded',
-        weightage: 2,
-      },
-      {
-        id: 'q2',
-        text: 'Which hook would you use to perform side effects in a functional component?',
-        options: ['useState', 'useEffect', 'useContext', 'useReducer'],
-        correctAnswer: 1,
-        difficulty: 'easy',
-        type: 'mcq',
-        gradingType: 'auto-graded',
         weightage: 1,
       },
       {
-        id: 'q3',
+        id: 'eq2',
+        text: 'Which hook would you use to perform side effects in a functional component?',
+        options: ['useState', 'useEffect', 'useContext', 'useReducer'],
+        correctAnswer: 1,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'eq3',
+        text: 'What does the second argument to useEffect control?',
+        options: [
+          'The cleanup function',
+          'The dependency array that determines when the effect re-runs',
+          'The initial state value',
+          'The component render priority',
+        ],
+        correctAnswer: 1,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'eq4',
+        text: 'Which of the following correctly describes React\'s Virtual DOM?',
+        options: [
+          'A direct copy of the browser DOM stored in a database',
+          'A lightweight in-memory representation of the real DOM used to compute minimal updates',
+          'A server-side rendering technique',
+          'A browser API for faster DOM manipulation',
+        ],
+        correctAnswer: 1,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'eq5',
+        text: 'What is the correct way to update state based on the previous state in React?',
+        options: [
+          'setState(state + 1)',
+          'setState(prev => prev + 1)',
+          'state = state + 1',
+          'setState({ value: state.value + 1 })',
+        ],
+        correctAnswer: 1,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'eq6',
         text: 'Explain the Virtual DOM in React and how it improves performance.',
-        options: [],
-        difficulty: 'medium',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
         type: 'descriptive',
-        gradingType: 'manual-review',
-        weightage: 5,
+        weightage: 3,
+      },
+    ],
+  },
+  {
+    id: 'eqb-2',
+    name: 'Python Data Structures',
+    questions: [
+      {
+        id: 'pq1',
+        text: 'Which Python data structure uses key-value pairs?',
+        options: ['List', 'Tuple', 'Dictionary', 'Set'],
+        correctAnswer: 2,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'pq2',
+        text: 'What is the time complexity of accessing an element in a Python list by index?',
+        options: ['O(n)', 'O(log n)', 'O(1)', 'O(n²)'],
+        correctAnswer: 2,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'pq3',
+        text: 'Which of the following is immutable in Python?',
+        options: ['List', 'Dictionary', 'Set', 'Tuple'],
+        correctAnswer: 3,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'pq4',
+        text: 'What does the pop() method do on a Python list?',
+        options: [
+          'Adds an element to the end',
+          'Removes and returns the last element (or element at given index)',
+          'Returns the last element without removing it',
+          'Clears the entire list',
+        ],
+        correctAnswer: 1,
+        type: 'mcq',
+        weightage: 1,
+      },
+      {
+        id: 'pq5',
+        text: 'Describe the difference between a list and a tuple in Python.',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        type: 'descriptive',
+        weightage: 3,
+      },
+    ],
+  },
+];
+
+export const mockExamTests: ExamTest[] = [
+  {
+    id: 't-1',
+    title: 'React Fundamentals Assessment',
+    description: 'Core React concepts and hooks',
+    durationMinutes: 60,
+    passingScorePercent: 70,
+    questionBatchId: 'eqb-1',
+    scheduledDate: '2026-05-05T10:00:00Z',
+    score: 85,
+    totalQuestions: 6,
+  },
+  {
+    id: 't-2',
+    title: 'Python Mastery Test',
+    durationMinutes: 45,
+    passingScorePercent: 65,
+    questionBatchId: 'eqb-2',
+    scheduledDate: '2026-04-29T14:00:00Z',
+    score: 78,
+    totalQuestions: 5,
+  },
+  {
+    id: 't-3',
+    title: 'JavaScript Basics',
+    durationMinutes: 30,
+    passingScorePercent: 60,
+    questionBatchId: 'eqb-1',
+    scheduledDate: '2026-04-10T09:00:00Z',
+    score: 90,
+    totalQuestions: 6,
+  },
+];
+
+export const mockExamTestResults: ExamTestResult[] = [
+  {
+    sessionId: 'sess-1',
+    testId: 't-1',
+    candidateId: 'c-1',
+    candidateEmail: 'sarah.chen@company.com',
+    testTitle: 'React Fundamentals Assessment',
+    score: 4,
+    totalWeightage: 8,
+    percentage: 90,
+    passed: true,
+    completedAt: '2026-05-05T10:48:00Z',
+    needsManualReview: true,
+    answers: {
+      eq1: 1,
+      eq2: 1,
+      eq3: 1,
+      eq4: 1,
+      eq5: 0, // wrong
+      eq6: 'The Virtual DOM is a lightweight copy of the real DOM. React uses it to diff changes and apply only the minimal set of updates to the actual DOM, avoiding expensive full re-renders.',
+    },
+  },
+  {
+    sessionId: 'sess-4',
+    testId: 't-2',
+    candidateId: 'c-4',
+    candidateEmail: 'intern1@company.com',
+    testTitle: 'Python Mastery Test',
+    score: 3,
+    totalWeightage: 7,
+    percentage: 78,
+    passed: true,
+    completedAt: '2026-04-29T14:50:00Z',
+    needsManualReview: true,
+    answers: {
+      pq1: 2,
+      pq2: 2,
+      pq3: 3,
+      pq4: 0, // wrong
+      pq5: 'A list is mutable — you can change its elements after creation. A tuple is immutable — once created, its elements cannot be changed. Tuples are generally faster and used for fixed data.',
+    },
+  },
+];
+
+// ─── Enums (aligned to backend) ──────────────────────────────────────────────
+
+export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+
+export type AssignmentStatus = 'Pending' | 'Active' | 'Completed' | 'Expired';
+
+export type SessionStatus = 'Active' | 'Completed' | 'Expired';
+
+export type QuestionType = 'mcq' | 'descriptive';
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
+
+export interface Question {
+  id: string;
+  content: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctOption: 'A' | 'B' | 'C' | 'D';
+  type: QuestionType;
+  weightage: number; // default 1, configurable
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface QuestionBatch {
+  id: string;
+  name: string;
+  domain?: string;
+  topic?: string;
+  difficulty?: Difficulty;
+  questionCount: number;
+  lastUsed: string;
+  createdAt: string;
+  createdBy: string;
+  isActive: boolean;
+  questions: Question[];
+}
+
+export interface CandidateBatch {
+  id: string;
+  name: string;
+  domain?: string;
+  topic?: string;
+  difficulty?: Difficulty;
+  candidateCount: number;
+  createdAt: string;
+  isActive: boolean;
+  // Admins who manage this batch — all have equal ownership privileges
+  adminEmails: string[];
+  // Candidate emails (frontend uses email, backend uses GUID)
+  candidates: string[];
+}
+
+export interface Test {
+  id: string;
+  title: string;
+  description?: string;
+  durationMinutes: number;
+  passingScorePercent: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface TestAssignment {
+  id: string;
+  testId: string;
+  testTitle: string;
+  questionBatchId: string;
+  questionBatchName: string;
+  // Either batchId or candidateEmail — not both
+  batchId?: string;
+  batchName?: string;
+  candidateEmail?: string;
+  questionCount: number;
+  scheduledStart: string;
+  deadline: string;
+  status: AssignmentStatus;
+  maxAttempts: number;
+  createdAt: string;
+  // Computed fields for display
+  totalCandidates: number;
+  completedCount: number;
+  // Active sessions count (candidates currently taking the test)
+  activeSessions: number;
+  averageScore?: number;
+  domain?: string;
+  durationMinutes: number;
+}
+
+export interface TestSession {
+  sessionId: string;
+  assignmentId: string;
+  candidateEmail: string;
+  candidateName: string;
+  testTitle: string;
+  attemptNumber: number;
+  startTime: string;
+  endTime?: string;
+  status: SessionStatus;
+  score?: number;
+  totalQuestions: number;
+}
+
+export interface TestResult {
+  sessionId: string;
+  candidateEmail: string;
+  testTitle: string;
+  score: number; // weighted score (float)
+  totalWeightage: number;
+  percentage: number; // float
+  passed: boolean;
+  completedAt: string;
+  // Descriptive answers needing manual review (v2 feature, kept as placeholder)
+  needsManualReview: boolean;
+}
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+
+export const mockQuestionBatches: QuestionBatch[] = [
+  {
+    id: 'qb-1',
+    name: 'React Fundamentals',
+    domain: 'Frontend Development',
+    topic: 'React.js',
+    difficulty: 'Intermediate',
+    questionCount: 20,
+    lastUsed: '2026-04-30',
+    createdAt: '2026-03-01',
+    createdBy: 'admin@company.com',
+    isActive: true,
+    questions: [
+      {
+        id: 'q1',
+        content: 'What is the primary purpose of React hooks?',
+        optionA: 'To replace class components entirely',
+        optionB: 'To allow state and lifecycle features in functional components',
+        optionC: 'To improve performance of all components',
+        optionD: 'To enable server-side rendering',
+        correctOption: 'B',
+        type: 'mcq',
+        weightage: 1,
+        createdBy: 'admin@company.com',
+        createdAt: '2026-03-01',
+      },
+      {
+        id: 'q2',
+        content: 'Which hook would you use to perform side effects in a functional component?',
+        optionA: 'useState',
+        optionB: 'useEffect',
+        optionC: 'useContext',
+        optionD: 'useReducer',
+        correctOption: 'B',
+        type: 'mcq',
+        weightage: 1,
+        createdBy: 'admin@company.com',
+        createdAt: '2026-03-01',
+      },
+      {
+        id: 'q3',
+        content: 'Explain the Virtual DOM in React and how it improves performance.',
+        optionA: '',
+        optionB: '',
+        optionC: '',
+        optionD: '',
+        correctOption: 'A',
+        type: 'descriptive',
+        weightage: 3,
+        createdBy: 'admin@company.com',
+        createdAt: '2026-03-01',
       },
     ],
   },
@@ -137,11 +434,12 @@ export const mockQuestionBatches: QuestionBatch[] = [
     name: 'Python Data Structures',
     domain: 'Programming',
     topic: 'Python',
-    difficulty: 'hard',
+    difficulty: 'Advanced',
     questionCount: 15,
     lastUsed: '2026-04-29',
-    createdOn: '2026-02-20',
+    createdAt: '2026-02-20',
     createdBy: 'admin@company.com',
+    isActive: true,
     questions: [],
   },
   {
@@ -149,11 +447,12 @@ export const mockQuestionBatches: QuestionBatch[] = [
     name: 'SQL Queries Advanced',
     domain: 'Database',
     topic: 'SQL',
-    difficulty: 'hard',
+    difficulty: 'Advanced',
     questionCount: 25,
     lastUsed: '2026-04-05',
-    createdOn: '2026-01-15',
+    createdAt: '2026-01-15',
     createdBy: 'admin@company.com',
+    isActive: true,
     questions: [],
   },
   {
@@ -161,11 +460,12 @@ export const mockQuestionBatches: QuestionBatch[] = [
     name: 'TypeScript Deep Dive',
     domain: 'Frontend Development',
     topic: 'TypeScript',
-    difficulty: 'medium',
+    difficulty: 'Intermediate',
     questionCount: 18,
     lastUsed: '2026-04-20',
-    createdOn: '2026-03-10',
+    createdAt: '2026-03-10',
     createdBy: 'admin@company.com',
+    isActive: true,
     questions: [],
   },
   {
@@ -173,11 +473,12 @@ export const mockQuestionBatches: QuestionBatch[] = [
     name: 'Machine Learning Basics',
     domain: 'Data Science',
     topic: 'ML Concepts',
-    difficulty: 'hard',
+    difficulty: 'Advanced',
     questionCount: 22,
     lastUsed: '2026-04-18',
-    createdOn: '2026-02-28',
+    createdAt: '2026-02-28',
     createdBy: 'admin@company.com',
+    isActive: true,
     questions: [],
   },
   {
@@ -185,11 +486,12 @@ export const mockQuestionBatches: QuestionBatch[] = [
     name: 'System Design Principles',
     domain: 'Architecture',
     topic: 'System Design',
-    difficulty: 'hard',
+    difficulty: 'Advanced',
     questionCount: 12,
     lastUsed: '2026-04-22',
-    createdOn: '2026-03-15',
+    createdAt: '2026-03-15',
     createdBy: 'admin@company.com',
+    isActive: true,
     questions: [],
   },
 ];
@@ -198,130 +500,65 @@ export const mockCandidateBatches: CandidateBatch[] = [
   {
     id: 'cb-1',
     name: 'Frontend Team Q2 2026',
+    domain: 'Frontend Development',
     candidateCount: 12,
-    createdOn: '2026-03-01',
-    createdBy: 'alex.johnson@company.com',
+    createdAt: '2026-03-01',
+    isActive: true,
+    adminEmails: ['alex.johnson@company.com', 'sarah.chen@company.com'],
     candidates: [
       'sarah.chen@company.com',
       'michael.brown@company.com',
       'emma.davis@company.com',
       'james.wilson@company.com',
     ],
-    sharedAdmins: ['sarah.chen@company.com'],
   },
   {
     id: 'cb-2',
     name: 'Data Science Interns',
+    domain: 'Data Science',
     candidateCount: 8,
-    createdOn: '2026-02-15',
-    createdBy: 'john.doe@company.com',
+    createdAt: '2026-02-15',
+    isActive: true,
+    adminEmails: ['john.doe@company.com'],
     candidates: ['intern1@company.com', 'intern2@company.com'],
-    sharedAdmins: [],
   },
   {
     id: 'cb-3',
     name: 'Backend Engineers Cohort',
+    domain: 'Architecture',
     candidateCount: 10,
-    createdOn: '2026-03-20',
-    createdBy: 'alex.johnson@company.com',
+    createdAt: '2026-03-20',
+    isActive: true,
+    adminEmails: ['alex.johnson@company.com'],
     candidates: ['dev1@company.com', 'dev2@company.com'],
-    sharedAdmins: [],
   },
 ];
 
-export const mockTests: Test[] = [
+export const mockAdminTests: Test[] = [
   {
     id: 't-1',
     title: 'React Fundamentals Assessment',
-    questionBatchId: 'qb-1',
-    candidateBatchId: 'cb-1',
-    scheduledDate: '2026-05-05T10:00:00',
-    duration: 60,
-    status: 'upcoming',
-    totalQuestions: 20,
-    batchName: 'Frontend Team Q2 2026',
-    domain: 'Frontend Development',
-    difficulty: 'medium',
+    description: 'Core React concepts and hooks',
+    durationMinutes: 60,
+    passingScorePercent: 70,
+    isActive: true,
+    createdAt: '2026-03-01',
   },
   {
     id: 't-2',
     title: 'Python Mastery Test',
-    questionBatchId: 'qb-2',
-    candidateBatchId: 'cb-2',
-    scheduledDate: '2026-04-29T14:00:00',
-    duration: 45,
-    status: 'in-progress',
-    totalQuestions: 15,
-    batchName: 'Data Science Interns',
-    domain: 'Programming',
-    difficulty: 'hard',
+    durationMinutes: 45,
+    passingScorePercent: 65,
+    isActive: true,
+    createdAt: '2026-02-20',
   },
   {
     id: 't-3',
     title: 'JavaScript Basics',
-    questionBatchId: 'qb-1',
-    candidateBatchId: 'cb-1',
-    scheduledDate: '2026-04-10T09:00:00',
-    duration: 30,
-    status: 'completed',
-    score: 85,
-    totalQuestions: 20,
-    batchName: 'Frontend Team Q2 2026',
-    domain: 'Frontend Development',
-    difficulty: 'easy',
-  },
-  {
-    id: 't-4',
-    title: 'TypeScript Proficiency Test',
-    questionBatchId: 'qb-4',
-    candidateBatchId: 'cb-1',
-    scheduledDate: '2026-05-08T11:00:00',
-    duration: 55,
-    status: 'upcoming',
-    totalQuestions: 18,
-    batchName: 'Frontend Team Q2 2026',
-    domain: 'Frontend Development',
-    difficulty: 'medium',
-  },
-  {
-    id: 't-5',
-    title: 'Machine Learning Fundamentals',
-    questionBatchId: 'qb-5',
-    candidateBatchId: 'cb-2',
-    scheduledDate: '2026-05-12T14:30:00',
-    duration: 75,
-    status: 'upcoming',
-    totalQuestions: 22,
-    batchName: 'Data Science Interns',
-    domain: 'Data Science',
-    difficulty: 'hard',
-  },
-  {
-    id: 't-6',
-    title: 'System Design Interview Prep',
-    questionBatchId: 'qb-6',
-    candidateBatchId: 'cb-3',
-    scheduledDate: '2026-05-15T09:30:00',
-    duration: 90,
-    status: 'upcoming',
-    totalQuestions: 12,
-    batchName: 'Backend Engineers Cohort',
-    domain: 'Architecture',
-    difficulty: 'hard',
-  },
-  {
-    id: 't-7',
-    title: 'SQL Advanced Queries',
-    questionBatchId: 'qb-3',
-    candidateBatchId: 'cb-2',
-    scheduledDate: '2026-04-15T10:00:00',
-    duration: 60,
-    status: 'completed',
-    score: 72,
-    totalQuestions: 25,
-    batchName: 'Data Science Interns',
-    domain: 'Database',
-    difficulty: 'hard',
+    durationMinutes: 30,
+    passingScorePercent: 60,
+    isActive: true,
+    createdAt: '2026-01-15',
   },
 ];
 
@@ -329,146 +566,283 @@ export const mockTestAssignments: TestAssignment[] = [
   {
     id: 'ta-1',
     testId: 't-2',
-    testName: 'Python Mastery Test',
+    testTitle: 'Python Mastery Test',
+    questionBatchId: 'qb-2',
+    questionBatchName: 'Python Data Structures',
     batchId: 'cb-2',
     batchName: 'Data Science Interns',
-    scheduledDate: '2026-04-29T14:00:00',
-    status: 'in-progress',
+    questionCount: 15,
+    scheduledStart: '2026-04-29T14:00:00Z',
+    deadline: '2026-04-29T16:00:00Z',
+    status: 'Active',
+    maxAttempts: 1,
+    createdAt: '2026-04-01',
     totalCandidates: 8,
     completedCount: 3,
+    activeSessions: 2,
     averageScore: 78,
     domain: 'Programming',
-    duration: 45,
+    durationMinutes: 45,
   },
   {
     id: 'ta-2',
     testId: 't-1',
-    testName: 'React Fundamentals Assessment',
+    testTitle: 'React Fundamentals Assessment',
+    questionBatchId: 'qb-1',
+    questionBatchName: 'React Fundamentals',
     batchId: 'cb-1',
     batchName: 'Frontend Team Q2 2026',
-    scheduledDate: '2026-05-05T10:00:00',
-    status: 'scheduled',
+    questionCount: 20,
+    scheduledStart: '2026-05-05T10:00:00Z',
+    deadline: '2026-05-05T12:00:00Z',
+    status: 'Pending',
+    maxAttempts: 1,
+    createdAt: '2026-04-01',
     totalCandidates: 12,
     completedCount: 0,
+    activeSessions: 0,
     domain: 'Frontend Development',
-    duration: 60,
+    durationMinutes: 60,
   },
   {
     id: 'ta-3',
     testId: 't-3',
-    testName: 'JavaScript Basics',
+    testTitle: 'JavaScript Basics',
+    questionBatchId: 'qb-1',
+    questionBatchName: 'React Fundamentals',
     batchId: 'cb-1',
     batchName: 'Frontend Team Q2 2026',
-    scheduledDate: '2026-04-10T09:00:00',
-    status: 'completed',
+    questionCount: 20,
+    scheduledStart: '2026-04-10T09:00:00Z',
+    deadline: '2026-04-10T11:00:00Z',
+    status: 'Completed',
+    maxAttempts: 1,
+    createdAt: '2026-03-20',
     totalCandidates: 12,
     completedCount: 12,
+    activeSessions: 0,
     averageScore: 85,
     domain: 'Frontend Development',
-    duration: 30,
-  },
-  {
-    id: 'ta-4',
-    testId: 't-4',
-    testName: 'TypeScript Proficiency Test',
-    batchId: 'cb-1',
-    batchName: 'Frontend Team Q2 2026',
-    scheduledDate: '2026-05-08T11:00:00',
-    status: 'scheduled',
-    totalCandidates: 12,
-    completedCount: 0,
-    domain: 'Frontend Development',
-    duration: 55,
-  },
-  {
-    id: 'ta-5',
-    testId: 't-5',
-    testName: 'Machine Learning Fundamentals',
-    batchId: 'cb-2',
-    batchName: 'Data Science Interns',
-    scheduledDate: '2026-05-12T14:30:00',
-    status: 'scheduled',
-    totalCandidates: 8,
-    completedCount: 0,
-    domain: 'Data Science',
-    duration: 75,
-  },
-  {
-    id: 'ta-6',
-    testId: 't-6',
-    testName: 'System Design Interview Prep',
-    batchId: 'cb-3',
-    batchName: 'Backend Engineers Cohort',
-    scheduledDate: '2026-05-15T09:30:00',
-    status: 'scheduled',
-    totalCandidates: 10,
-    completedCount: 0,
-    domain: 'Architecture',
-    duration: 90,
-  },
-  {
-    id: 'ta-7',
-    testId: 't-7',
-    testName: 'SQL Advanced Queries',
-    batchId: 'cb-2',
-    batchName: 'Data Science Interns',
-    scheduledDate: '2026-04-15T10:00:00',
-    status: 'completed',
-    totalCandidates: 8,
-    completedCount: 8,
-    averageScore: 72,
-    domain: 'Database',
-    duration: 60,
+    durationMinutes: 30,
   },
 ];
 
-export const mockCandidateTestStatuses: CandidateTestStatus[] = [
+export const mockSessions: TestSession[] = [
   {
-    candidateId: 'c1',
-    candidateName: 'Sarah Chen',
+    sessionId: 'sess-1',
+    assignmentId: 'ta-1',
     candidateEmail: 'sarah.chen@company.com',
-    testId: 't-2',
-    status: 'finished',
-    score: 92,
-    startedAt: '2026-04-29T14:05:00',
-    finishedAt: '2026-04-29T14:45:00',
+    candidateName: 'Sarah Chen',
+    testTitle: 'Python Mastery Test',
+    attemptNumber: 1,
+    startTime: '2026-04-29T14:05:00Z',
+    status: 'Completed',
+    score: 13.5,
+    totalQuestions: 15,
   },
   {
-    candidateId: 'c2',
-    candidateName: 'Michael Brown',
+    sessionId: 'sess-2',
+    assignmentId: 'ta-1',
     candidateEmail: 'michael.brown@company.com',
-    testId: 't-2',
-    status: 'in-progress',
-    startedAt: '2026-04-29T14:10:00',
+    candidateName: 'Michael Brown',
+    testTitle: 'Python Mastery Test',
+    attemptNumber: 1,
+    startTime: '2026-04-29T14:10:00Z',
+    status: 'Active',
+    totalQuestions: 15,
   },
   {
-    candidateId: 'c3',
-    candidateName: 'Emma Davis',
-    candidateEmail: 'emma.davis@company.com',
-    testId: 't-2',
-    status: 'not-started',
+    sessionId: 'sess-3',
+    assignmentId: 'ta-1',
+    candidateEmail: 'intern1@company.com',
+    candidateName: 'Intern One',
+    testTitle: 'Python Mastery Test',
+    attemptNumber: 1,
+    startTime: '2026-04-29T14:08:00Z',
+    status: 'Active',
+    totalQuestions: 15,
   },
 ];
 
 export const mockTestResults: TestResult[] = [
   {
-    testId: 't-3',
-    candidateId: 'c1',
-    answers: { q1: 1, q2: 1, q3: 'The Virtual DOM is a lightweight copy...' },
-    score: 8,
-    completedAt: '2026-04-10T09:30:00',
-    needsManualReview: true,
-    reviewStatus: 'pending',
+    sessionId: 'sess-1',
+    candidateEmail: 'sarah.chen@company.com',
+    testTitle: 'Python Mastery Test',
+    score: 13.5,
+    totalWeightage: 15,
+    percentage: 90.0,
+    passed: true,
+    completedAt: '2026-04-29T14:45:00Z',
+    needsManualReview: false,
+  },
+];
+
+// ─── Candidate dashboard tests ────────────────────────────────────────────────────────────
+
+export interface CandidateTest {
+  id: string;
+  title: string;
+  status: 'upcoming' | 'completed';
+  scheduledDate: string;
+  duration: number;
+  totalQuestions: number;
+  domain: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  batchName: string;
+  score?: number; // percentage, only for completed
+}
+
+export const mockTests: CandidateTest[] = [
+  {
+    id: 't-1',
+    title: 'React Fundamentals Assessment',
+    status: 'upcoming',
+    scheduledDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+    duration: 60,
+    totalQuestions: 6,
+    domain: 'Frontend Development',
+    difficulty: 'medium',
+    batchName: 'Frontend Team Q2 2026',
   },
   {
+    id: 't-2',
+    title: 'Python Mastery Test',
+    status: 'upcoming',
+    scheduledDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    duration: 45,
+    totalQuestions: 5,
+    domain: 'Programming',
+    difficulty: 'hard',
+    batchName: 'Data Science Interns',
+  },
+  {
+    id: 't-4',
+    title: 'TypeScript Deep Dive',
+    status: 'upcoming',
+    scheduledDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    duration: 50,
+    totalQuestions: 18,
+    domain: 'Frontend Development',
+    difficulty: 'hard',
+    batchName: 'Frontend Team Q2 2026',
+  },
+  {
+    id: 't-3',
+    title: 'JavaScript Basics',
+    status: 'completed',
+    scheduledDate: '2026-04-10T09:00:00Z',
+    duration: 30,
+    totalQuestions: 6,
+    domain: 'Frontend Development',
+    difficulty: 'easy',
+    batchName: 'Frontend Team Q2 2026',
+    score: 90,
+  },
+  {
+    id: 't-5',
+    title: 'SQL Queries Advanced',
+    status: 'completed',
+    scheduledDate: '2026-03-22T10:00:00Z',
+    duration: 40,
+    totalQuestions: 25,
+    domain: 'Database',
+    difficulty: 'hard',
+    batchName: 'Backend Engineers Cohort',
+    score: 72,
+  },
+  {
+    id: 't-6',
+    title: 'System Design Principles',
+    status: 'completed',
+    scheduledDate: '2026-02-15T14:00:00Z',
+    duration: 60,
+    totalQuestions: 12,
+    domain: 'Architecture',
+    difficulty: 'hard',
+    batchName: 'Backend Engineers Cohort',
+    score: 85,
+  },
+];
+
+// Candidate-facing mock data
+export const mockCandidateAssignments = [
+  {
+    assignmentId: 'ta-2',
+    testId: 't-1',
+    testTitle: 'React Fundamentals Assessment',
+    scheduledStart: '2026-05-05T10:00:00Z',
+    deadline: '2026-05-05T12:00:00Z',
+    status: 'Pending' as AssignmentStatus,
+    durationMinutes: 60,
+    questionCount: 20,
+  },
+  {
+    assignmentId: 'ta-3',
     testId: 't-3',
-    candidateId: 'c2',
-    answers: { q1: 1, q2: 1, q3: 'Virtual DOM explanation here...' },
-    score: 7,
-    completedAt: '2026-04-10T09:28:00',
-    needsManualReview: true,
-    reviewStatus: 'in-review',
-    reviewedBy: 'admin@company.com',
+    testTitle: 'JavaScript Basics',
+    scheduledStart: '2026-04-10T09:00:00Z',
+    deadline: '2026-04-10T11:00:00Z',
+    status: 'Completed' as AssignmentStatus,
+    durationMinutes: 30,
+    questionCount: 20,
+  },
+];
+
+export interface CandidateTestStatus {
+  candidateId: string;
+  testId: string;
+  candidateName: string;
+  candidateEmail: string;
+  status: 'not-started' | 'in-progress' | 'finished' | 'ended-by-admin';
+  score?: number;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export const mockCandidateTestStatuses: CandidateTestStatus[] = [
+  {
+    candidateId: 'c-1',
+    testId: 't-1',
+    candidateName: 'Sarah Chen',
+    candidateEmail: 'sarah.chen@company.com',
+    status: 'finished',
+    score: 90,
+    startedAt: '2026-05-05T10:02:00Z',
+    finishedAt: '2026-05-05T10:48:00Z',
+  },
+  {
+    candidateId: 'c-2',
+    testId: 't-1',
+    candidateName: 'Michael Brown',
+    candidateEmail: 'michael.brown@company.com',
+    status: 'in-progress',
+    startedAt: '2026-05-05T10:05:00Z',
+  },
+  {
+    candidateId: 'c-3',
+    testId: 't-1',
+    candidateName: 'Emma Davis',
+    candidateEmail: 'emma.davis@company.com',
+    status: 'not-started',
+  },
+  {
+    candidateId: 'c-4',
+    testId: 't-2',
+    candidateName: 'Intern One',
+    candidateEmail: 'intern1@company.com',
+    status: 'finished',
+    score: 78,
+    startedAt: '2026-04-29T14:08:00Z',
+    finishedAt: '2026-04-29T14:50:00Z',
+  },
+  {
+    candidateId: 'c-5',
+    testId: 't-2',
+    candidateName: 'Intern Two',
+    candidateEmail: 'intern2@company.com',
+    status: 'in-progress',
+    startedAt: '2026-04-29T14:10:00Z',
   },
 ];
 

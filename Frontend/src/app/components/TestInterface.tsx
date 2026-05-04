@@ -12,7 +12,7 @@ import {
   Eraser,
   Flag,
 } from 'lucide-react';
-import { mockTests, mockQuestionBatches } from '../data/mockData';
+import { mockExamTests, mockExamQuestionBatches } from '../data/mockData';
 import { toast } from 'sonner';
 
 const TestInterface: React.FC = () => {
@@ -35,8 +35,8 @@ const TestInterface: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
 
-  const test = mockTests.find((t) => t.id === testId);
-  const questionBatch = mockQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
+  const test = mockExamTests.find((t) => t.id === testId);
+  const questionBatch = mockExamQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
   const questions = questionBatch?.questions || [];
 
   useEffect(() => {

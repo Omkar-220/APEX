@@ -61,9 +61,9 @@ const CandidateDashboard: React.FC = () => {
   const completedTests = mockTests.filter((t) => t.status === 'completed');
 
   const scoreData = [
+    { name: 'Sys. Design', score: 85 },
     { name: 'SQL Adv.', score: 72 },
-    { name: 'JS Basics', score: 85 },
-    { name: 'React Fund.', score: 91 },
+    { name: 'JS Basics', score: 90 },
   ];
 
   const tabs = [

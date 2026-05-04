@@ -4,6 +4,19 @@ node_modules/
 .pnp.js
 .yarn/install-state.gz
 
+# .NET
+Backend/**/bin/
+Backend/**/obj/
+*.user
+appsettings.Development.json
+secrets.json
+
+# .NET User Secrets are stored outside the repo automatically,
+# but block any accidental secrets files
+**/secrets.json
+**/*.pfx
+**/*.p12
+
 # Testing
 coverage/
 *.lcov

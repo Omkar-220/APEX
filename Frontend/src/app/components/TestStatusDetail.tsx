@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, AlertCircle, CheckCircle, Clock, XCircle, Ban } from 'lucide-react';
-import { mockTestAssignments, mockCandidateTestStatuses, mockTests } from '../data/mockData';
+import { mockTestAssignments, mockCandidateTestStatuses, mockAdminTests } from '../data/mockData';
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'sonner';
 
@@ -10,7 +10,7 @@ const TestStatusDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const assignment = mockTestAssignments.find((a) => a.testId === testId);
-  const test = mockTests.find((t) => t.id === testId);
+  const test = mockAdminTests.find((t) => t.id === testId);
   const candidateStatuses = mockCandidateTestStatuses.filter((s) => s.testId === testId);
 
   const handleEndTest = (candidateEmail: string) => {
@@ -74,7 +74,7 @@ const TestStatusDetail: React.FC = () => {
 
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 mb-6">
-          <h1 className="text-3xl mb-2 text-gray-900 dark:text-white">{assignment.testName}</h1>
+          <h1 className="text-3xl mb-2 text-gray-900 dark:text-white">{assignment.testTitle}</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{assignment.batchName}</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -97,7 +97,7 @@ const TestStatusDetail: React.FC = () => {
             <div>
               <span className="text-sm text-gray-500 dark:text-gray-400">Scheduled</span>
               <div className="text-lg text-gray-900 dark:text-white">
-                {new Date(assignment.scheduledDate).toLocaleDateString()}
+                {new Date(assignment.scheduledStart).toLocaleDateString()}
               </div>
             </div>
           </div>

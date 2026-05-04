@@ -16,3 +16,5 @@ d:\TestModule\APEX\Backend\src\Infrastructure\obj\Debug\net9.0\Infrastructure.dl
 d:\TestModule\APEX\Backend\src\Infrastructure\obj\Debug\net9.0\refint\Infrastructure.dll
 d:\TestModule\APEX\Backend\src\Infrastructure\obj\Debug\net9.0\Infrastructure.pdb
 d:\TestModule\APEX\Backend\src\Infrastructure\obj\Debug\net9.0\ref\Infrastructure.dll
+d:\TestModule\APEX\Backend\src\Infrastructure\bin\Debug\net9.0\Infrastructure.runtimeconfig.json
+d:\TestModule\APEX\Backend\src\Infrastructure\obj\Debug\net9.0\Infrastructure.genruntimeconfig.cache
