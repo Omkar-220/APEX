@@ -55,7 +55,6 @@ public class WebhookProcessorService : BackgroundService
 
         foreach (var entry in pending)
         {
-            var utcNow = DateTime.UtcNow;
             try
             {
                 var response = await client.PostAsync(
@@ -65,20 +64,20 @@ public class WebhookProcessorService : BackgroundService
 
                 if (response.IsSuccessStatusCode)
                 {
-                    entry.RecordAttemptSuccess(utcNow);
+                    entry.RecordAttemptSuccess(DateTime.UtcNow);
                     _logger.LogInformation("Webhook sent for {EventType} OutboxId={OutboxId}",
                         entry.EventType, entry.OutboxId);
                 }
                 else
                 {
-                    entry.RecordAttemptFailure(utcNow);
+                    entry.RecordAttemptFailure(DateTime.UtcNow);
                     _logger.LogWarning("Webhook failed ({StatusCode}) for OutboxId={OutboxId}, retry {Retry}",
                         response.StatusCode, entry.OutboxId, entry.RetryCount);
                 }
             }
             catch (Exception ex)
             {
-                entry.RecordAttemptFailure(utcNow);
+                entry.RecordAttemptFailure(DateTime.UtcNow);
                 _logger.LogWarning(ex, "Webhook exception for OutboxId={OutboxId}, retry {Retry}",
                     entry.OutboxId, entry.RetryCount);
             }

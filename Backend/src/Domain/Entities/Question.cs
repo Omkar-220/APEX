@@ -31,7 +31,7 @@ public class Question
     }
 
     // Internal — only QuestionBatch can create questions
-    internal static Question Create(
+    public static Question Create(
         string content,
         string optionA,
         string optionB,

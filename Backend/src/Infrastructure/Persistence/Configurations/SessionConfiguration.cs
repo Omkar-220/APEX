@@ -98,7 +98,6 @@ public class SessionQuestionMappingConfiguration : IEntityTypeConfiguration<Sess
 
         builder.HasIndex(m => new { m.SessionId, m.QuestionPosition }).IsUnique();
         builder.HasIndex(m => new { m.SessionId, m.QuestionId }).IsUnique();
-        builder.HasIndex(m => new { m.SessionId, m.QuestionPosition });
 
         builder.HasOne(m => m.Question)
             .WithMany(q => q.SessionMappings)

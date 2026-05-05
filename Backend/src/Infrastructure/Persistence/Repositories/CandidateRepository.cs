@@ -1,5 +1,6 @@
 using Domain.Entities;
 using Domain.Ports.Repositories;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
@@ -22,6 +23,22 @@ public class CandidateRepository : ICandidateRepository
     {
         await _context.Candidates.AddAsync(candidate, ct);
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<Candidate> AddOrGetExistingAsync(Candidate candidate, CancellationToken ct = default)
+    {
+        try
+        {
+            await _context.Candidates.AddAsync(candidate, ct);
+            await _context.SaveChangesAsync(ct);
+            return candidate;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx
+            && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+        {
+            _context.ChangeTracker.Clear();
+            return (await GetByOidAsync(candidate.AzureAdOid.Value, ct))!;
+        }
     }
 
     public async Task UpdateAsync(Candidate candidate, CancellationToken ct = default)

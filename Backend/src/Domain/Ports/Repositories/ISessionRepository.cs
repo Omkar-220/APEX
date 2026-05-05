@@ -13,6 +13,12 @@ public interface ISessionRepository
     Task AddAsync(TestSession session, CancellationToken ct = default);
 
     /// <summary>
+    /// Atomically creates a session and its question mappings in a single transaction.
+    /// Prevents orphaned sessions if mapping insert fails.
+    /// </summary>
+    Task AddWithMappingsAsync(TestSession session, IEnumerable<SessionQuestionMapping> mappings, CancellationToken ct = default);
+
+    /// <summary>
     /// Optimistic concurrency update — only updates if RowVersion matches.
     /// Returns false if concurrency conflict occurred.
     /// </summary>

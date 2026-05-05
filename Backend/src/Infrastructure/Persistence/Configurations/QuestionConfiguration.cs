@@ -35,11 +35,6 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
             .HasDefaultValue(1m)
             .IsRequired();
 
-        builder.Property(q => q.Weightage)
-            .HasColumnType("DECIMAL(5,2)")
-            .HasDefaultValue(1m)
-            .IsRequired();
-
         builder.Property(q => q.CreatedBy).IsRequired();
 
         builder.Property(q => q.CreatedAt)
