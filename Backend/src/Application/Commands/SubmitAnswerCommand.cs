@@ -14,14 +14,14 @@ public class SubmitAnswerHandler
     private readonly IAnswerRepository _answerRepo;
     private readonly ISessionQuestionMappingRepository _mappingRepo;
     private readonly ITestRepository _testRepo;
-    private readonly FinalizeTestHandler _finalizeHandler;
+    private readonly IFinalizeTestHandler _finalizeHandler;
 
     public SubmitAnswerHandler(
         ISessionRepository sessionRepo,
         IAnswerRepository answerRepo,
         ISessionQuestionMappingRepository mappingRepo,
         ITestRepository testRepo,
-        FinalizeTestHandler finalizeHandler)
+        IFinalizeTestHandler finalizeHandler)
     {
         _sessionRepo = sessionRepo;
         _answerRepo = answerRepo;
@@ -44,12 +44,15 @@ public class SubmitAnswerHandler
 
         var utcNow = DateTime.UtcNow;
 
-        // 2. Check time — fire-and-forget finalize if expired
+        // 2. Check session status and time
+        if (session.Status != Domain.Enums.TestSessionStatus.Active)
+            throw new SessionExpiredException(cmd.SessionId);
+
         var timeRemaining = session.ComputeTimeRemainingSec(test.DurationMinutes, utcNow);
         if (timeRemaining <= 0)
         {
             _ = Task.Run(() => _finalizeHandler.HandleAsync(
-                new FinalizeTestCommand(cmd.SessionId, cmd.CandidateId, "auto_expired"),
+                new FinalizeTestCommand(cmd.SessionId, cmd.CandidateId, "auto_expired", IsSystemTriggered: true),
                 CancellationToken.None));
             throw new SessionExpiredException(cmd.SessionId);
         }

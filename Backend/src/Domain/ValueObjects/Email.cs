@@ -23,13 +23,15 @@ public sealed class Email : IEquatable<Email>
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
 
+        email = email.Trim().ToLowerInvariant();
+
         if (email.Length > 255)
             throw new ArgumentException("Email cannot exceed 255 characters.", nameof(email));
 
         if (!EmailRegex.IsMatch(email))
             throw new ArgumentException($"Invalid email format: {email}", nameof(email));
 
-        return new Email(email.Trim().ToLowerInvariant());
+        return new Email(email);
     }
 
     public static implicit operator string(Email email) => email.Value;

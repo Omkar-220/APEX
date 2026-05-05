@@ -146,7 +146,7 @@ public class GetTestStatusHandler
     private readonly ISessionQuestionMappingRepository _mappingRepo;
     private readonly IAuditRepository _auditRepo;
     private readonly SessionStatusCacheService _cache;
-    private readonly FinalizeTestHandler _finalizeHandler;
+    private readonly IFinalizeTestHandler _finalizeHandler;
 
     public GetTestStatusHandler(
         ISessionRepository sessionRepo,
@@ -154,7 +154,7 @@ public class GetTestStatusHandler
         ISessionQuestionMappingRepository mappingRepo,
         IAuditRepository auditRepo,
         SessionStatusCacheService cache,
-        FinalizeTestHandler finalizeHandler)
+        IFinalizeTestHandler finalizeHandler)
     {
         _sessionRepo = sessionRepo;
         _answerRepo = answerRepo;
@@ -180,11 +180,21 @@ public class GetTestStatusHandler
         var utcNow = DateTime.UtcNow;
         var timeRemaining = session.ComputeTimeRemainingSec(session.Test.DurationMinutes, utcNow);
 
+        // Already finalized — return final status directly
+        if (session.Status != Domain.Enums.TestSessionStatus.Active)
+        {
+            return new TestStatusDto(query.SessionId, 0,
+                session.Status.ToString(), null,
+                await _answerRepo.CountBySessionAsync(query.SessionId, ct),
+                (await _mappingRepo.GetBySessionAsync(query.SessionId, ct)).Count,
+                await _auditRepo.CountViolationsAsync(query.SessionId, ct));
+        }
+
         // Time expired and still Active — fire-and-forget finalize, return Completed immediately
         if (timeRemaining == 0 && session.Status == Domain.Enums.TestSessionStatus.Active)
         {
             _ = Task.Run(() => _finalizeHandler.HandleAsync(
-                new FinalizeTestCommand(query.SessionId, query.CandidateId, "auto_expired"),
+                new FinalizeTestCommand(query.SessionId, query.CandidateId, "auto_expired", IsSystemTriggered: true),
                 CancellationToken.None));
 
             return new TestStatusDto(query.SessionId, 0, "Completed", null,
@@ -226,12 +236,12 @@ public class GetTestResultHandler
 {
     private readonly ISessionRepository _sessionRepo;
     private readonly IResultCachePort _resultCache;
-    private readonly FinalizeTestHandler _finalizeHandler;
+    private readonly IFinalizeTestHandler _finalizeHandler;
 
     public GetTestResultHandler(
         ISessionRepository sessionRepo,
         IResultCachePort resultCache,
-        FinalizeTestHandler finalizeHandler)
+        IFinalizeTestHandler finalizeHandler)
     {
         _sessionRepo = sessionRepo;
         _resultCache = resultCache;
@@ -251,12 +261,13 @@ public class GetTestResultHandler
 
         var cached = _resultCache.Get<FinalizeResultDto>(query.SessionId);
         if (cached != null)
-            return new TestResultDto(cached.Score, cached.TotalQuestions, cached.Passed, cached.Percentage, session.EndTime!.Value);
+            return new TestResultDto(cached.Score, cached.TotalQuestions, cached.Passed, cached.Percentage,
+                session.EndTime ?? DateTime.UtcNow);
 
-        // Not in cache — recompute via finalize (idempotent)
         var result = await _finalizeHandler.HandleAsync(
             new FinalizeTestCommand(query.SessionId, query.CandidateId, "result_fetch"), ct);
 
-        return new TestResultDto(result.Score, result.TotalQuestions, result.Passed, result.Percentage, session.EndTime!.Value);
+        return new TestResultDto(result.Score, result.TotalQuestions, result.Passed, result.Percentage,
+            session.EndTime ?? DateTime.UtcNow);
     }
 }

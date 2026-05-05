@@ -22,7 +22,7 @@ public class TestSession
     // Navigation properties
     public TestAssignment Assignment { get; private set; } = null!;
     public Candidate Candidate { get; private set; } = null!;
-    public Test Test { get; private set; } = null!;
+    public Test Test { get; internal set; } = null!;
     public ICollection<SessionQuestionMapping> QuestionMappings { get; private set; } = new List<SessionQuestionMapping>();
     public ICollection<Answer> Answers { get; private set; } = new List<Answer>();
     public ICollection<AuditEvent> AuditEvents { get; private set; } = new List<AuditEvent>();

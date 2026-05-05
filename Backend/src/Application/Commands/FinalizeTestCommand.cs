@@ -6,9 +6,17 @@ using System.Text.Json;
 
 namespace Application.Commands;
 
-public record FinalizeTestCommand(Guid SessionId, Guid CandidateId, string TriggeredBy);
+public record FinalizeTestCommand(Guid SessionId, Guid CandidateId, string TriggeredBy, bool IsSystemTriggered = false);
 
-public class FinalizeTestHandler
+/// <summary>
+/// Abstraction over FinalizeTestHandler for testability.
+/// </summary>
+public interface IFinalizeTestHandler
+{
+    Task<FinalizeResultDto> HandleAsync(FinalizeTestCommand cmd, CancellationToken ct = default);
+}
+
+public class FinalizeTestHandler : IFinalizeTestHandler
 {
     private readonly ISessionRepository _sessionRepo;
     private readonly IAnswerRepository _answerRepo;
@@ -47,7 +55,7 @@ public class FinalizeTestHandler
         var session = await _sessionRepo.GetByIdAsync(cmd.SessionId, ct)
             ?? throw new KeyNotFoundException($"Session {cmd.SessionId} not found.");
 
-        if (session.CandidateId != cmd.CandidateId && cmd.TriggeredBy != "auto_expired")
+        if (session.CandidateId != cmd.CandidateId && !cmd.IsSystemTriggered)
             throw new UnauthorizedAccessException("Session does not belong to this candidate.");
 
         var test = await _testRepo.GetByIdAsync(session.TestId, ct)

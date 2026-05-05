@@ -10,10 +10,12 @@
 using System;
 using System.Reflection;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Application.Tests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Domain.Tests")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e3b204e44387061539e06932d715fe9404325e0a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+00f17e20c4a028ea9e2d6405cfc13de9dc4a7759")]
 [assembly: System.Reflection.AssemblyProductAttribute("Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

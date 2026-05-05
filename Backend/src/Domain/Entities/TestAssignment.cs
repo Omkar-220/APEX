@@ -18,7 +18,7 @@ public class TestAssignment
     public DateTime CreatedAt { get; private set; }
 
     // Navigation properties
-    public Test Test { get; private set; } = null!;
+    public Test Test { get; internal set; } = null!;
     public QuestionBatch QuestionBatch { get; private set; } = null!;
     public Batch? Batch { get; private set; }
     public Candidate? Candidate { get; private set; }

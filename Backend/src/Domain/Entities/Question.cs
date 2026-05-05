@@ -4,7 +4,7 @@ namespace Domain.Entities;
 
 public class Question
 {
-    public Guid QuestionId { get; private set; }
+    public Guid QuestionId { get; internal set; }
     public string Content { get; private set; }
     public string OptionA { get; private set; }
     public string OptionB { get; private set; }

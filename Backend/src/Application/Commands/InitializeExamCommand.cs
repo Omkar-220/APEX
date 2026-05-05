@@ -16,7 +16,6 @@ public class InitializeExamHandler
     private readonly ISessionRepository _sessionRepo;
     private readonly IQuestionBatchRepository _questionBatchRepo;
     private readonly IQuestionRepository _questionRepo;
-    private readonly ISessionQuestionMappingRepository _mappingRepo;
     private readonly string _appSalt;
 
     public InitializeExamHandler(
@@ -25,7 +24,6 @@ public class InitializeExamHandler
         ISessionRepository sessionRepo,
         IQuestionBatchRepository questionBatchRepo,
         IQuestionRepository questionRepo,
-        ISessionQuestionMappingRepository mappingRepo,
         IConfiguration config)
     {
         _assignmentRepo = assignmentRepo;
@@ -33,7 +31,6 @@ public class InitializeExamHandler
         _sessionRepo = sessionRepo;
         _questionBatchRepo = questionBatchRepo;
         _questionRepo = questionRepo;
-        _mappingRepo = mappingRepo;
         _appSalt = config["App:Salt"]
             ?? throw new InvalidOperationException("App:Salt is not configured.");
     }

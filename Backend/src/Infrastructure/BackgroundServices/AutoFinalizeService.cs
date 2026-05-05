@@ -77,9 +77,12 @@ public class AutoFinalizeService : BackgroundService
                         Domain.Entities.AuditEvent.Create(session.SessionId, "exam_finalized",
                             "{\"triggeredBy\":\"auto_expired\"}"), ct);
                     await context.SaveChangesAsync(ct);
-
                     _logger.LogInformation("Auto-finalized session {SessionId} with score {Score}",
                         session.SessionId, score);
+                }
+                else
+                {
+                    _logger.LogDebug("Session {SessionId} already finalized by another process", session.SessionId);
                 }
             }
             catch (Exception ex)

@@ -1,3 +1,4 @@
+using Api.Endpoints;
 using Api.Middleware;
 using Application.Commands;
 using Application.Commands.Admin;
@@ -13,6 +14,7 @@ using Infrastructure.BackgroundServices;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,55 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // ── Memory Cache ──────────────────────────────────────────────────────────────
 builder.Services.AddMemoryCache();
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+builder.Services.AddCors(options =>
+    options.AddPolicy("ApexCors", policy =>
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "https://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()));
+
+// ── Rate Limiting (per-user OID) ──────────────────────────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = 429;
+
+    // General: 60 req/min per user
+    options.AddPolicy("general", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.User.FindFirst("oid")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    // Polling: 30 req/min per user (status endpoint)
+    options.AddPolicy("polling", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.User.FindFirst("oid")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    // Submission: 120 req/min per user (answer submission)
+    options.AddPolicy("submission", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.User.FindFirst("oid")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
 
 // ── Repositories ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
@@ -67,6 +118,7 @@ builder.Services.AddScoped<CreateAssignmentHandler>();
 builder.Services.AddScoped<InitializeExamHandler>();
 builder.Services.AddScoped<SubmitAnswerHandler>();
 builder.Services.AddScoped<FinalizeTestHandler>();
+builder.Services.AddScoped<IFinalizeTestHandler>(sp => sp.GetRequiredService<FinalizeTestHandler>());
 
 // ── Application Queries ───────────────────────────────────────────────────────
 builder.Services.AddScoped<GetMeHandler>();
@@ -90,18 +142,30 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-    app.MapOpenApi();
-
-// ── Middleware Pipeline (order matters) ────────────────────────────────────────────────────────────────
+// ── Middleware Pipeline (order matters) ───────────────────────────────────────
 app.UseMiddleware<ExceptionHandlerMiddleware>();
-app.UseHttpsRedirection();
+
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+
+app.UseCors("ApexCors");
 
 if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
     app.UseMiddleware<DevAuthMiddleware>();
+}
 // else: app.UseAuthentication(); app.UseAuthorization(); ← wire when Entra ID is ready
 
+app.UseRateLimiter();
+
+// ── Endpoints ─────────────────────────────────────────────────────────────────
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", utc = DateTime.UtcNow }))
-   .WithName("Health");
+   .WithName("Health")
+   .RequireRateLimiting("general");
+
+app.MapCandidateEndpoints();
+app.MapExamEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();

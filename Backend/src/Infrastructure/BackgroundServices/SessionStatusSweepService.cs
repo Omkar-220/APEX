@@ -61,7 +61,6 @@ public class SessionStatusSweepService : BackgroundService
                 s.SessionId,
                 s.Status,
                 s.StartTime,
-                s.Score,
                 DurationMinutes = s.Test.DurationMinutes,
                 AnsweredCount = context.Answers.Count(a => a.SessionId == s.SessionId),
                 TotalQuestions = context.SessionQuestionMappings.Count(m => m.SessionId == s.SessionId),
