@@ -50,3 +50,97 @@ public class GetAdminSessionsHandler
             s.StartTime)).ToList();
     }
 }
+
+// ── Get Question Batches ──────────────────────────────────────────────────────
+
+public class GetQuestionBatchesHandler
+{
+    private readonly IQuestionBatchRepository _repo;
+    public GetQuestionBatchesHandler(IQuestionBatchRepository repo) => _repo = repo;
+
+    public async Task<List<QuestionBatchDto>> HandleAsync(CancellationToken ct = default)
+    {
+        var batches = await _repo.GetAllAsync(ct);
+        return batches.Select(b => new QuestionBatchDto(
+            b.QuestionBatchId,
+            b.Name,
+            b.Domain,
+            b.Topic,
+            b.Difficulty?.ToString(),
+            b.QuestionBatchMembers.Count,
+            b.IsActive,
+            b.CreatedAt)).ToList();
+    }
+}
+
+// ── Get Tests ─────────────────────────────────────────────────────────────────
+
+public class GetTestsHandler
+{
+    private readonly ITestRepository _repo;
+    public GetTestsHandler(ITestRepository repo) => _repo = repo;
+
+    public async Task<List<TestDto>> HandleAsync(CancellationToken ct = default)
+    {
+        var tests = await _repo.GetAllAsync(ct);
+        return tests.Select(t => new TestDto(
+            t.TestId,
+            t.Title,
+            t.Description,
+            t.DurationMinutes,
+            t.PassingScorePercent,
+            t.IsActive,
+            t.CreatedAt)).ToList();
+    }
+}
+
+// ── Get Assignments ───────────────────────────────────────────────────────────
+
+public class GetAssignmentsHandler
+{
+    private readonly ITestAssignmentRepository _repo;
+    public GetAssignmentsHandler(ITestAssignmentRepository repo) => _repo = repo;
+
+    public async Task<List<AdminAssignmentDto>> HandleAsync(CancellationToken ct = default)
+    {
+        var assignments = await _repo.GetAllAsync(ct);
+        return assignments.Select(a => new AdminAssignmentDto(
+            a.AssignmentId,
+            a.TestId,
+            a.Test?.Title ?? string.Empty,
+            a.QuestionBatchId,
+            string.Empty,
+            a.BatchId,
+            null,
+            a.CandidateId,
+            null,
+            a.QuestionCount,
+            a.ScheduledStart,
+            a.Deadline,
+            a.Status.ToString(),
+            a.MaxAttempts,
+            a.CreatedAt)).ToList();
+    }
+}
+
+// ── Get Candidate Batches ─────────────────────────────────────────────────────
+
+public class GetBatchesHandler
+{
+    private readonly IBatchRepository _repo;
+    public GetBatchesHandler(IBatchRepository repo) => _repo = repo;
+
+    public async Task<List<CandidateBatchDto>> HandleAsync(CancellationToken ct = default)
+    {
+        var batches = await _repo.GetAllAsync(ct);
+        return batches.Select(b => new CandidateBatchDto(
+            b.BatchId,
+            b.Name,
+            b.Domain,
+            b.Topic,
+            b.Difficulty?.ToString(),
+            b.Members.Count,
+            b.IsActive,
+            b.CreatedAt)).ToList();
+    }
+}

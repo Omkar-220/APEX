@@ -45,19 +45,23 @@ public class SessionRepository : ISessionRepository
 
     public async Task AddWithMappingsAsync(TestSession session, IEnumerable<SessionQuestionMapping> mappings, CancellationToken ct = default)
     {
-        await using var tx = await _context.Database.BeginTransactionAsync(ct);
-        try
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            await _context.TestSessions.AddAsync(session, ct);
-            await _context.SessionQuestionMappings.AddRangeAsync(mappings, ct);
-            await _context.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch
-        {
-            await tx.RollbackAsync(ct);
-            throw;
-        }
+            await using var tx = await _context.Database.BeginTransactionAsync(ct);
+            try
+            {
+                await _context.TestSessions.AddAsync(session, ct);
+                await _context.SessionQuestionMappings.AddRangeAsync(mappings, ct);
+                await _context.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        });
     }
 
     public async Task<bool> TryFinalizeAsync(Guid sessionId, int score, DateTime endTime, byte[] rowVersion, CancellationToken ct = default)

@@ -6,6 +6,12 @@ public record CreateQuestionRequest(
     char CorrectOption,
     decimal Weightage = 1);
 
+/// <summary>
+/// Creates multiple questions and assigns them to a batch atomically.
+/// Mirrors the frontend QuestionEditor save flow.
+/// </summary>
+public record CreateQuestionsInBatchRequest(List<CreateQuestionRequest> Questions);
+
 public record CreateQuestionBatchRequest(
     string Name,
     string? Domain = null, string? Topic = null, string? Difficulty = null);
@@ -28,10 +34,10 @@ public record CreateAssignmentRequest(
     Guid TestId,
     Guid QuestionBatchId,
     int QuestionCount,
-    DateTime ScheduledStart,
-    DateTime Deadline,
+    string ScheduledStart,
+    string Deadline,
     int MaxAttempts = 1,
-    Guid? BatchId = null,
-    Guid? CandidateId = null);
+    string? BatchId = null,
+    string? CandidateId = null);
 
 public record UpdateRoleRequest(string Role);

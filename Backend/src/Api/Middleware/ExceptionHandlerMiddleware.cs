@@ -10,11 +10,13 @@ public class ExceptionHandlerMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlerMiddleware> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public ExceptionHandlerMiddleware(RequestDelegate next, ILogger<ExceptionHandlerMiddleware> logger)
+    public ExceptionHandlerMiddleware(RequestDelegate next, ILogger<ExceptionHandlerMiddleware> logger, IWebHostEnvironment env)
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -92,7 +94,9 @@ public class ExceptionHandlerMiddleware
             _ => (
                 HttpStatusCode.InternalServerError,
                 "INTERNAL_ERROR",
-                "An unexpected error occurred.")
+                _env.IsDevelopment()
+                    ? $"{ex.GetType().Name}: {ex.Message} | {ex.StackTrace?.Split('\n')[0]?.Trim()}"
+                    : "An unexpected error occurred.")
         };
 
         // Log 5xx errors

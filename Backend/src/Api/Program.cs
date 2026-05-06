@@ -1,4 +1,5 @@
 using Api.Endpoints;
+using Scalar.AspNetCore;
 using Api.Middleware;
 using Application.Commands;
 using Application.Commands.Admin;
@@ -109,6 +110,7 @@ builder.Services.AddSingleton<SessionStatusCacheService>();
 builder.Services.AddScoped<ProvisionCandidateHandler>();
 builder.Services.AddScoped<UpdateCandidateRoleHandler>();
 builder.Services.AddScoped<CreateQuestionHandler>();
+builder.Services.AddScoped<CreateQuestionsInBatchHandler>();
 builder.Services.AddScoped<CreateQuestionBatchHandler>();
 builder.Services.AddScoped<AddQuestionsToBatchHandler>();
 builder.Services.AddScoped<CreateBatchHandler>();
@@ -128,6 +130,10 @@ builder.Services.AddScoped<GetTestStatusHandler>();
 builder.Services.AddScoped<GetTestResultHandler>();
 builder.Services.AddScoped<GetAdminUsersHandler>();
 builder.Services.AddScoped<GetAdminSessionsHandler>();
+builder.Services.AddScoped<GetQuestionBatchesHandler>();
+builder.Services.AddScoped<GetTestsHandler>();
+builder.Services.AddScoped<GetAssignmentsHandler>();
+builder.Services.AddScoped<GetBatchesHandler>();
 
 // ── Validators ────────────────────────────────────────────────────────────────
 builder.Services.AddValidatorsFromAssemblyContaining<ProvisionCandidateValidator>();
@@ -153,6 +159,12 @@ app.UseCors("ApexCors");
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.Title = "APEX Exam API";
+        options.Theme = ScalarTheme.Purple;
+        options.DefaultHttpClient = new(ScalarTarget.Http, ScalarClient.HttpClient);
+    });
     app.UseMiddleware<DevAuthMiddleware>();
 }
 // else: app.UseAuthentication(); app.UseAuthorization(); ← wire when Entra ID is ready

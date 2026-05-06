@@ -2,6 +2,7 @@ using Domain.Entities;
 using Domain.Enums;
 using Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
@@ -18,21 +19,39 @@ public class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
             .HasDefaultValueSql("NEWID()");
 
         builder.Property(c => c.Email)
-            .HasConversion(e => e.Value, v => Email.Create(v))
+            .HasConversion(
+                e => e.Value,
+                v => Email.Create(v),
+                new ValueComparer<Email>(
+                    (l, r) => l!.Value == r!.Value,
+                    v => v.Value.GetHashCode(),
+                    v => Email.Create(v.Value)))
             .HasColumnType("NVARCHAR(255)")
             .IsRequired();
 
         builder.HasIndex(c => c.Email).IsUnique();
 
         builder.Property(c => c.AzureAdOid)
-            .HasConversion(o => o.Value, v => AzureAdOid.Create(v))
+            .HasConversion(
+                o => o.Value,
+                v => AzureAdOid.Create(v),
+                new ValueComparer<AzureAdOid>(
+                    (l, r) => l!.Value == r!.Value,
+                    v => v.Value.GetHashCode(),
+                    v => AzureAdOid.Create(v.Value)))
             .HasColumnType("VARCHAR(128)")
             .IsRequired();
 
         builder.HasIndex(c => c.AzureAdOid).IsUnique();
 
         builder.Property(c => c.DisplayName)
-            .HasConversion(d => d.Value, v => DisplayName.Create(v))
+            .HasConversion(
+                d => d.Value,
+                v => DisplayName.Create(v),
+                new ValueComparer<DisplayName>(
+                    (l, r) => l!.Value == r!.Value,
+                    v => v.Value.GetHashCode(),
+                    v => DisplayName.Create(v.Value)))
             .HasColumnType("NVARCHAR(255)")
             .IsRequired();
 

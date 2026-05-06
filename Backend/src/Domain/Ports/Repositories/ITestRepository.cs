@@ -23,6 +23,7 @@ public interface ITestAssignmentRepository
     /// <summary>Returns all Active assignments past their deadline — used by AutoFinalizeService.</summary>
     Task<List<TestAssignment>> GetExpiredActiveAsync(DateTime utcNow, CancellationToken ct = default);
 
+    Task<List<TestAssignment>> GetAllAsync(CancellationToken ct = default);
     Task AddAsync(TestAssignment assignment, CancellationToken ct = default);
     Task UpdateAsync(TestAssignment assignment, CancellationToken ct = default);
 }

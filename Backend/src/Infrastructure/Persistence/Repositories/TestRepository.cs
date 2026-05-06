@@ -53,6 +53,12 @@ public class TestAssignmentRepository : ITestAssignmentRepository
             .Where(a => a.Status == AssignmentStatus.Active && a.Deadline < utcNow)
             .ToListAsync(ct);
 
+    public Task<List<TestAssignment>> GetAllAsync(CancellationToken ct = default) =>
+        _context.TestAssignments
+            .Include(a => a.Test)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(ct);
+
     public async Task AddAsync(TestAssignment assignment, CancellationToken ct = default)
     {
         await _context.TestAssignments.AddAsync(assignment, ct);

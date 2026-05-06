@@ -183,3 +183,4 @@ d:\TestModule\APEX\Backend\src\Api\bin\Debug\net9.0\runtimes\win\lib\net6.0\Syst
 d:\TestModule\APEX\Backend\src\Api\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Windows.Extensions.dll
 d:\TestModule\APEX\Backend\src\Api\bin\Debug\net9.0\FluentValidation.dll
 d:\TestModule\APEX\Backend\src\Api\bin\Debug\net9.0\FluentValidation.DependencyInjectionExtensions.dll
+d:\TestModule\APEX\Backend\src\Api\bin\Debug\net9.0\Scalar.AspNetCore.dll
