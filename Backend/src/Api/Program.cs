@@ -1,6 +1,6 @@
 using Api.Endpoints;
-using Scalar.AspNetCore;
 using Api.Middleware;
+using Api.Services;
 using Application.Commands;
 using Application.Commands.Admin;
 using Application.Queries;
@@ -14,7 +14,11 @@ using Infrastructure.Adapters;
 using Infrastructure.BackgroundServices;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
+using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,43 +46,49 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials()));
 
-// ── Rate Limiting (per-user OID) ──────────────────────────────────────────────
+// ── JWT Authentication ────────────────────────────────────────────────────────
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidateIssuer           = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"] ?? "apex-api",
+            ValidateAudience         = true,
+            ValidAudience            = builder.Configuration["Jwt:Audience"] ?? "apex-client",
+            ValidateLifetime         = true,
+            ClockSkew                = TimeSpan.Zero,
+        };
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<JwtTokenService>();
+
+// ── Rate Limiting (per-user) ──────────────────────────────────────────────────
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
 
-    // General: 60 req/min per user
     options.AddPolicy("general", ctx =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: ctx.User.FindFirst("oid")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 60,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            factory: _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
-    // Polling: 30 req/min per user (status endpoint)
     options.AddPolicy("polling", ctx =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: ctx.User.FindFirst("oid")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            factory: _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
-    // Submission: 120 req/min per user (answer submission)
     options.AddPolicy("submission", ctx =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: ctx.User.FindFirst("oid")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 120,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            factory: _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 
 // ── Repositories ─────────────────────────────────────────────────────────────
@@ -99,7 +109,7 @@ builder.Services.AddScoped<INotificationPort, NotificationAdapter>();
 builder.Services.AddScoped<IAuditPort, AuditAdapter>();
 builder.Services.AddSingleton<IResultCachePort, ResultCacheAdapter>();
 
-// ── HTTP Client (for webhook processor) ──────────────────────────────────────
+// ── HTTP Client ───────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient("webhook");
 
 // ── Application Services ─────────────────────────────────────────────────────
@@ -134,6 +144,8 @@ builder.Services.AddScoped<GetQuestionBatchesHandler>();
 builder.Services.AddScoped<GetTestsHandler>();
 builder.Services.AddScoped<GetAssignmentsHandler>();
 builder.Services.AddScoped<GetBatchesHandler>();
+builder.Services.AddScoped<GetCompletedSessionsHandler>();
+builder.Services.AddScoped<GetScorecardHandler>();
 
 // ── Validators ────────────────────────────────────────────────────────────────
 builder.Services.AddValidatorsFromAssemblyContaining<ProvisionCandidateValidator>();
@@ -146,9 +158,12 @@ builder.Services.AddHostedService<SessionStatusSweepService>();
 // ── OpenAPI ───────────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
 
+// ── Seeder ───────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<DataSeeder>();
+
 var app = builder.Build();
 
-// ── Middleware Pipeline (order matters) ───────────────────────────────────────
+// ── Middleware Pipeline ───────────────────────────────────────────────────────
 app.UseMiddleware<ExceptionHandlerMiddleware>();
 
 if (!app.Environment.IsDevelopment())
@@ -165,17 +180,26 @@ if (app.Environment.IsDevelopment())
         options.Theme = ScalarTheme.Purple;
         options.DefaultHttpClient = new(ScalarTarget.Http, ScalarClient.HttpClient);
     });
-    app.UseMiddleware<DevAuthMiddleware>();
 }
-// else: app.UseAuthentication(); app.UseAuthorization(); ← wire when Entra ID is ready
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
+
+// ── Run migrations + seed on startup ─────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+    await db.Database.MigrateAsync();
+    await seeder.SeedAsync();
+}
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", utc = DateTime.UtcNow }))
-   .WithName("Health")
-   .RequireRateLimiting("general");
+   .WithName("Health");
 
+app.MapAuthEndpoints();
 app.MapCandidateEndpoints();
 app.MapExamEndpoints();
 app.MapAdminEndpoints();

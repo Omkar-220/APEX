@@ -29,52 +29,65 @@ public class GetMyAssignmentsHandler
 {
     private readonly ITestAssignmentRepository _assignmentRepo;
     private readonly IBatchRepository _batchRepo;
+    private readonly ISessionRepository _sessionRepo;
 
     public GetMyAssignmentsHandler(
         ITestAssignmentRepository assignmentRepo,
-        IBatchRepository batchRepo)
+        IBatchRepository batchRepo,
+        ISessionRepository sessionRepo)
     {
         _assignmentRepo = assignmentRepo;
         _batchRepo = batchRepo;
+        _sessionRepo = sessionRepo;
     }
 
     public async Task<List<AssignmentDto>> HandleAsync(GetMyAssignmentsQuery query, CancellationToken ct = default)
     {
         var utcNow = DateTime.UtcNow;
 
-        // Direct assignments
         var direct = await _assignmentRepo.GetForCandidateAsync(query.CandidateId, ct);
-
-        // Batch assignments
         var batchIds = await _batchRepo.GetBatchIdsForCandidateAsync(query.CandidateId, ct);
         var batched = batchIds.Count > 0
             ? await _assignmentRepo.GetForBatchesAsync(batchIds, ct)
             : new List<Domain.Entities.TestAssignment>();
 
-        // Merge and deduplicate
         var all = direct
             .Concat(batched)
             .DistinctBy(a => a.AssignmentId)
             .Where(a =>
-                // Upcoming: within next 24h or already started
                 (a.Status == AssignmentStatus.Pending && a.ScheduledStart <= utcNow.AddHours(24)) ||
-                // Active window
                 a.Status == AssignmentStatus.Active ||
-                // History
                 a.Status == AssignmentStatus.Completed)
             .OrderBy(a => a.ScheduledStart)
             .ToList();
 
-        return all.Select(a => new AssignmentDto(
-            a.AssignmentId,
-            a.TestId,
-            a.Test.Title,
-            a.ScheduledStart,
-            a.Deadline,
-            a.Status.ToString(),
-            a.Test.DurationMinutes,
-            a.QuestionCount,
-            a.MaxAttempts)).ToList();
+        // Batch-fetch latest completed session for every completed assignment in one query
+        var completedIds = all
+            .Where(a => a.Status == AssignmentStatus.Completed)
+            .Select(a => a.AssignmentId);
+
+        var sessionMap = await _sessionRepo.GetLatestCompletedByAssignmentsAsync(completedIds, ct);
+
+        return all.Select(a =>
+        {
+            sessionMap.TryGetValue(a.AssignmentId, out var session);
+            var percentage = session?.Score is int s
+                ? Math.Round((decimal)s / a.QuestionCount * 100, 1)
+                : (decimal?)null;
+
+            return new AssignmentDto(
+                a.AssignmentId,
+                a.TestId,
+                a.Test.Title,
+                a.ScheduledStart,
+                a.Deadline,
+                a.Status.ToString(),
+                a.Test.DurationMinutes,
+                a.QuestionCount,
+                a.MaxAttempts,
+                session?.Score,
+                percentage);
+        }).ToList();
     }
 }
 

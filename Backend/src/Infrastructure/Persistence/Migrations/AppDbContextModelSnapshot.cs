@@ -159,21 +159,27 @@ namespace Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWID()");
 
-                    b.Property<string>("AzureAdOid")
+                    b.Property<string>("AzureAdOidValue")
                         .IsRequired()
-                        .HasColumnType("VARCHAR(128)");
+                        .HasColumnType("VARCHAR(128)")
+                        .HasColumnName("AzureAdOid");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("DATETIME2")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
 
-                    b.Property<string>("DisplayName")
+                    b.Property<string>("DisplayNameValue")
                         .IsRequired()
-                        .HasColumnType("NVARCHAR(255)");
+                        .HasColumnType("NVARCHAR(255)")
+                        .HasColumnName("DisplayName");
 
-                    b.Property<string>("Email")
+                    b.Property<string>("EmailValue")
                         .IsRequired()
+                        .HasColumnType("NVARCHAR(255)")
+                        .HasColumnName("Email");
+
+                    b.Property<string>("PasswordHash")
                         .HasColumnType("NVARCHAR(255)");
 
                     b.Property<string>("Role")
@@ -182,11 +188,13 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.HasKey("CandidateId");
 
-                    b.HasIndex("AzureAdOid")
-                        .IsUnique();
+                    b.HasIndex("AzureAdOidValue")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Candidates_AzureAdOid");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
+                    b.HasIndex("EmailValue")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Candidates_Email");
 
                     b.ToTable("Candidates", (string)null);
                 });
@@ -480,12 +488,12 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TestId");
 
-                    b.HasIndex("AssignmentId", "AttemptNumber")
-                        .IsUnique();
-
                     b.HasIndex("CandidateId", "Status");
 
                     b.HasIndex("Status", "StartTime");
+
+                    b.HasIndex("AssignmentId", "CandidateId", "AttemptNumber")
+                        .IsUnique();
 
                     b.ToTable("TestSessions", (string)null);
                 });

@@ -19,8 +19,11 @@ public class NotificationAdapter : INotificationPort
         _outbox = outbox;
         _logger = logger;
         _webhookUrl = config["PowerAutomate:WebhookUrl"];
-        if (string.IsNullOrWhiteSpace(_webhookUrl))
+        if (string.IsNullOrWhiteSpace(_webhookUrl) || _webhookUrl.StartsWith("PLACEHOLDER"))
+        {
+            _webhookUrl = null;
             _logger.LogWarning("PowerAutomate:WebhookUrl is not configured. Notifications will be skipped.");
+        }
     }
 
     public async Task EnqueueAsync(string eventType, object payload, CancellationToken ct = default)

@@ -10,3 +10,4 @@ d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.dll
 d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\refint\Domain.dll
 d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.pdb
 d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\ref\Domain.dll
+d:\TestModule\APEX\Backend\src\Domain\obj\Debug\net9.0\Domain.csproj.AssemblyReference.cache

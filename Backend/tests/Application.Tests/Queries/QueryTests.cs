@@ -15,12 +15,19 @@ public class GetMyAssignmentsHandlerTests
 {
     private readonly Mock<ITestAssignmentRepository> _assignmentRepo = new();
     private readonly Mock<IBatchRepository> _batchRepo = new();
+    private readonly Mock<ISessionRepository> _sessionRepo = new();
     private readonly GetMyAssignmentsHandler _sut;
 
     private static readonly Guid CandidateId = Guid.NewGuid();
 
-    public GetMyAssignmentsHandlerTests() =>
-        _sut = new GetMyAssignmentsHandler(_assignmentRepo.Object, _batchRepo.Object);
+    public GetMyAssignmentsHandlerTests()
+    {
+        _sessionRepo
+            .Setup(r => r.GetLatestCompletedByAssignmentsAsync(It.IsAny<IEnumerable<Guid>>(), default))
+            .ReturnsAsync(new Dictionary<Guid, Domain.Entities.TestSession>());
+
+        _sut = new GetMyAssignmentsHandler(_assignmentRepo.Object, _batchRepo.Object, _sessionRepo.Object);
+    }
 
     private TestAssignment MakeAssignment(
         AssignmentStatus status = AssignmentStatus.Pending,

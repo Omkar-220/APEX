@@ -9,4 +9,5 @@ public interface IBatchRepository
     Task<List<Guid>> GetBatchIdsForCandidateAsync(Guid candidateId, CancellationToken ct = default);
     Task AddAsync(Batch batch, CancellationToken ct = default);
     Task AddMembersAsync(Guid batchId, IEnumerable<Guid> candidateIds, CancellationToken ct = default);
+    Task UpdateAsync(Batch batch, CancellationToken ct = default);
 }

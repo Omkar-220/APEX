@@ -1,89 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { Calendar, Clock, Users, AlertCircle, X, Edit, Trash2, UserPlus, UserMinus } from 'lucide-react';
-import { mockTests, mockCandidateBatches } from '../data/mockData';
+import { Calendar, Clock, Users, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { getAssignments, AdminAssignmentDto } from '../services/apiService';
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'sonner';
 
-const UpcomingTestManager: React.FC = () => {
-  const { testId } = useParams();
-  const navigate = useNavigate();
-  const test = mockTests.find((t) => t.id === testId);
-  const batch = mockCandidateBatches.find((b) => b.id === test?.candidateBatchId);
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.8)',
+  border: '1px solid rgba(15,76,117,0.2)',
+  color: '#2D3436',
+};
 
-  const [scheduledDate, setScheduledDate] = useState(
-    test?.scheduledDate ? test.scheduledDate.split('T')[0] : ''
-  );
-  const [scheduledTime, setScheduledTime] = useState(
-    test?.scheduledDate ? test.scheduledDate.split('T')[1].substring(0, 5) : ''
-  );
-  const [selectedBatch, setSelectedBatch] = useState(test?.candidateBatchId || '');
-  const [tempCandidates, setTempCandidates] = useState<string[]>(batch?.candidates || []);
-  const [newCandidate, setNewCandidate] = useState('');
-  const [applyChanges, setApplyChanges] = useState<'permanent' | 'temporary'>('temporary');
+const cardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.70)',
+  border: '1px solid rgba(15,76,117,0.12)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 4px 16px rgba(15,76,117,0.08)',
+};
+
+const UpcomingTestManager: React.FC = () => {
+  const { testId } = useParams<{ testId: string }>();
+  const navigate = useNavigate();
+
+  const [assignment, setAssignment] = useState<AdminAssignmentDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+
+  useEffect(() => {
+    getAssignments()
+      .then(list => {
+        const found = list.find(a => a.testId === testId && a.status === 'Pending') ?? list.find(a => a.testId === testId) ?? null;
+        setAssignment(found);
+        if (found) {
+          const d = new Date(found.scheduledStart);
+          setScheduledDate(d.toISOString().split('T')[0]);
+          setScheduledTime(d.toISOString().split('T')[1].substring(0, 5));
+        }
+      })
+      .catch(() => setAssignment(null))
+      .finally(() => setLoading(false));
+  }, [testId]);
 
   const handlePostpone = () => {
-    if (!scheduledDate || !scheduledTime) {
-      toast.error('Please select both date and time');
-      return;
-    }
-    toast.success('Test postponed successfully', {
+    if (!scheduledDate || !scheduledTime) { toast.error('Please select both date and time'); return; }
+    toast.success('Schedule updated', {
       description: `New schedule: ${new Date(scheduledDate + 'T' + scheduledTime).toLocaleString()}`,
     });
   };
 
   const handleCancel = () => {
-    if (confirm('Are you sure you want to cancel this test? This action cannot be undone.')) {
-      toast.success('Test cancelled successfully');
-      setTimeout(() => navigate('/admin/dashboard'), 1500);
+    if (confirm('Cancel this test? This cannot be undone.')) {
+      toast.success('Test cancelled');
+      setTimeout(() => navigate('/admin/dashboard'), 1200);
     }
   };
 
-  const handleReassign = () => {
-    if (!selectedBatch) {
-      toast.error('Please select a batch');
-      return;
-    }
-    toast.success('Test reassigned successfully', {
-      description: `Assigned to: ${mockCandidateBatches.find((b) => b.id === selectedBatch)?.name}`,
-    });
-  };
-
-  const handleAddCandidate = () => {
-    if (newCandidate && newCandidate.includes('@')) {
-      setTempCandidates([...tempCandidates, newCandidate]);
-      setNewCandidate('');
-      toast.success('Candidate added');
-    }
-  };
-
-  const handleRemoveCandidate = (email: string) => {
-    setTempCandidates(tempCandidates.filter((c) => c !== email));
-    toast.success('Candidate removed');
-  };
-
-  const handleApplyBatchChanges = () => {
-    if (applyChanges === 'permanent') {
-      toast.success('Batch updated permanently', {
-        description: 'Changes will apply to all future tests',
-      });
-    } else {
-      toast.success('Changes applied to this test only', {
-        description: 'Original batch remains unchanged',
-      });
-    }
-  };
-
-  if (!test) {
+  if (loading) {
     return (
       <DashboardLayout>
-        <div className="max-w-4xl mx-auto text-center py-12">
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl text-gray-900 dark:text-white mb-2">Test Not Found</h2>
-          <button
-            onClick={() => navigate('/admin/dashboard')}
-            className="text-blue-600 hover:text-blue-700"
-          >
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#1B9AAA' }} />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!assignment) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto text-center py-16">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" style={{ color: 'rgba(15,76,117,0.25)' }} />
+          <h2 className="text-xl mb-3" style={{ color: '#0F4C75' }}>Assignment Not Found</h2>
+          <button onClick={() => navigate('/admin/dashboard')} className="text-sm" style={{ color: '#1B9AAA' }}>
             Back to Dashboard
           </button>
         </div>
@@ -93,209 +82,85 @@ const UpcomingTestManager: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl mb-2 text-gray-900 dark:text-white">Manage Upcoming Test</h1>
-          <p className="text-gray-600 dark:text-gray-400">{test.title}</p>
+      <div className="max-w-5xl mx-auto">
+        <button onClick={() => navigate('/admin/dashboard')}
+          className="flex items-center gap-2 mb-6 text-sm transition-colors"
+          style={{ color: '#636E72' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#0F4C75')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#636E72')}>
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
+
+        <div className="mb-6">
+          <h1 className="text-xl mb-1" style={{ color: '#0F4C75' }}>Manage Upcoming Test</h1>
+          <p className="text-sm" style={{ color: '#636E72' }}>{assignment.testTitle}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Controls */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Postpone Test */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h2 className="text-xl mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-600" />
-                Postpone Test
-              </h2>
+          {/* Left: controls */}
+          <div className="lg:col-span-2 space-y-5">
 
+            {/* Reschedule */}
+            <div className="rounded-2xl p-6" style={cardStyle}>
+              <h2 className="text-sm mb-4 flex items-center gap-2" style={{ color: '#0F4C75' }}>
+                <Calendar className="w-4 h-4" /> Reschedule Test
+              </h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">New Date</label>
-                  <input
-                    type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>New Date</label>
+                  <input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
                 </div>
                 <div>
-                  <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">New Time</label>
-                  <input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>New Time</label>
+                  <input type="time" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={inputStyle} />
                 </div>
               </div>
-
-              <button
-                onClick={handlePostpone}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition-colors"
-              >
+              <button onClick={handlePostpone}
+                className="w-full py-2.5 rounded-xl text-sm text-white transition-all"
+                style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(27,154,170,0.4)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}>
                 Update Schedule
               </button>
             </div>
 
-            {/* Reassign to Batch */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h2 className="text-xl mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-600" />
-                Reassign to Different Batch
+            {/* Danger zone */}
+            <div className="rounded-2xl p-6"
+              style={{ background: 'rgba(224,122,95,0.06)', border: '1px solid rgba(224,122,95,0.2)', backdropFilter: 'blur(16px)' }}>
+              <h2 className="text-sm mb-2 flex items-center gap-2" style={{ color: '#E07A5F' }}>
+                <AlertCircle className="w-4 h-4" /> Danger Zone
               </h2>
-
-              <select
-                value={selectedBatch}
-                onChange={(e) => setSelectedBatch(e.target.value)}
-                className="w-full px-4 py-3 mb-4 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a batch</option>
-                {mockCandidateBatches.map((batch) => (
-                  <option key={batch.id} value={batch.id}>
-                    {batch.name} ({batch.candidateCount} candidates)
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={handleReassign}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors"
-              >
-                Reassign Test
-              </button>
-            </div>
-
-            {/* Edit Batch Candidates */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h2 className="text-xl mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <Edit className="w-5 h-5 text-green-600" />
-                Edit Candidates for This Test
-              </h2>
-
-              <div className="flex gap-3 mb-4">
-                <input
-                  type="email"
-                  placeholder="candidate@company.com"
-                  value={newCandidate}
-                  onChange={(e) => setNewCandidate(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCandidate()}
-                  className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handleAddCandidate}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Add
-                </button>
-              </div>
-
-              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                {tempCandidates.map((email) => (
-                  <div
-                    key={email}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                  >
-                    <span className="text-gray-900 dark:text-white text-sm">{email}</span>
-                    <button
-                      onClick={() => handleRemoveCandidate(email)}
-                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">Apply Changes</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="applyChanges"
-                      value="temporary"
-                      checked={applyChanges === 'temporary'}
-                      onChange={() => setApplyChanges('temporary')}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">For this test only</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="applyChanges"
-                      value="permanent"
-                      checked={applyChanges === 'permanent'}
-                      onChange={() => setApplyChanges('permanent')}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Update batch permanently</span>
-                  </label>
-                </div>
-              </div>
-
-              <button
-                onClick={handleApplyBatchChanges}
-                className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors"
-              >
-                Apply Changes
+              <p className="text-xs mb-4" style={{ color: '#636E72' }}>
+                Cancel this test. All candidates will be notified. This cannot be undone.
+              </p>
+              <button onClick={handleCancel}
+                className="px-5 py-2.5 rounded-xl text-sm text-white transition-all"
+                style={{ background: 'linear-gradient(135deg, #E07A5F, #c96a50)' }}>
+                Cancel Test
               </button>
             </div>
           </div>
 
-          {/* Sidebar Info */}
-          <div className="space-y-6">
-            {/* Current Info */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg mb-4 text-gray-900 dark:text-white">Current Details</h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Test Name</span>
-                  <div className="text-gray-900 dark:text-white">{test.title}</div>
+          {/* Right: info */}
+          <div className="rounded-2xl p-6" style={cardStyle}>
+            <h3 className="text-sm mb-4" style={{ color: '#0F4C75' }}>Assignment Details</h3>
+            <div className="space-y-4 text-xs">
+              {[
+                { label: 'Test', value: assignment.testTitle },
+                { label: 'Batch', value: assignment.batchName ?? assignment.candidateEmail ?? '—', icon: <Users className="w-3 h-3" /> },
+                { label: 'Scheduled', value: new Date(assignment.scheduledStart).toLocaleString(), icon: <Calendar className="w-3 h-3" /> },
+                { label: 'Deadline', value: new Date(assignment.deadline).toLocaleString() },
+                { label: 'Questions', value: `${assignment.questionCount}` },
+                { label: 'Max Attempts', value: `${assignment.maxAttempts}` },
+                { label: 'Question Bank', value: assignment.questionBatchName, icon: <Clock className="w-3 h-3" /> },
+              ].map(({ label, value, icon }) => (
+                <div key={label}>
+                  <div className="mb-0.5" style={{ color: '#636E72' }}>{label}</div>
+                  <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>{icon}{value}</div>
                 </div>
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Current Batch</span>
-                  <div className="text-gray-900 dark:text-white">{test.batchName}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Scheduled</span>
-                  <div className="text-gray-900 dark:text-white">
-                    {new Date(test.scheduledDate).toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Duration</span>
-                  <div className="text-gray-900 dark:text-white">{test.duration} minutes</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Questions</span>
-                  <div className="text-gray-900 dark:text-white">{test.totalQuestions}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Candidates</span>
-                  <div className="text-gray-900 dark:text-white">{tempCandidates.length}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Danger Zone */}
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
-              <h3 className="text-lg mb-4 text-red-900 dark:text-red-400 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                Danger Zone
-              </h3>
-              <p className="text-sm text-red-800 dark:text-red-400 mb-4">
-                Cancel this test. This action cannot be undone. All candidates will be notified.
-              </p>
-              <button
-                onClick={handleCancel}
-                className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Cancel Test
-              </button>
+              ))}
             </div>
           </div>
         </div>

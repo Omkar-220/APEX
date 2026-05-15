@@ -19,7 +19,9 @@ public record AssignmentDto(
     string Status,
     int DurationMinutes,
     int QuestionCount,
-    int MaxAttempts
+    int MaxAttempts,
+    int? Score,
+    decimal? Percentage
 );
 
 public record AdminAssignmentDto(

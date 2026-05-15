@@ -14,6 +14,7 @@ public class SessionRepository : ISessionRepository
     public Task<TestSession?> GetByIdAsync(Guid sessionId, CancellationToken ct = default) =>
         _context.TestSessions
             .Include(s => s.Test)
+            .Include(s => s.Candidate)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct);
 
     public Task<List<TestSession>> GetByAssignmentAsync(Guid assignmentId, CancellationToken ct = default) =>
@@ -23,7 +24,17 @@ public class SessionRepository : ISessionRepository
 
     public Task<int> CountAttemptsAsync(Guid assignmentId, Guid candidateId, CancellationToken ct = default) =>
         _context.TestSessions
-            .CountAsync(s => s.AssignmentId == assignmentId && s.CandidateId == candidateId, ct);
+            .CountAsync(s => s.AssignmentId == assignmentId
+                          && s.CandidateId == candidateId
+                          && s.Status != TestSessionStatus.Expired, ct);
+
+    public async Task<int> GetMaxAttemptNumberAsync(Guid assignmentId, Guid candidateId, CancellationToken ct = default)
+    {
+        var max = await _context.TestSessions
+            .Where(s => s.AssignmentId == assignmentId && s.CandidateId == candidateId)
+            .MaxAsync(s => (int?)s.AttemptNumber, ct);
+        return max ?? 0;
+    }
 
     public Task<List<TestSession>> GetActiveExpiredAsync(DateTime utcNow, int durationMinutes, CancellationToken ct = default) =>
         _context.TestSessions
@@ -37,6 +48,26 @@ public class SessionRepository : ISessionRepository
             .Where(s => s.TestId == testId && (status == null || s.Status == status))
             .ToListAsync(ct);
 
+    public async Task<Dictionary<Guid, TestSession>> GetLatestCompletedByAssignmentsAsync(
+        IEnumerable<Guid> assignmentIds, CancellationToken ct = default)
+    {
+        var ids = assignmentIds.ToList();
+        if (ids.Count == 0) return new Dictionary<Guid, TestSession>();
+
+        // For each assignment, pick the completed session with the highest score
+        // (last attempt that finished). Group client-side — set is already small.
+        var sessions = await _context.TestSessions
+            .Include(s => s.Candidate)
+            .Where(s => ids.Contains(s.AssignmentId) && s.Status == TestSessionStatus.Completed)
+            .ToListAsync(ct);
+
+        return sessions
+            .GroupBy(s => s.AssignmentId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(s => s.EndTime).First());
+    }
+
     public async Task AddAsync(TestSession session, CancellationToken ct = default)
     {
         await _context.TestSessions.AddAsync(session, ct);
@@ -45,14 +76,17 @@ public class SessionRepository : ISessionRepository
 
     public async Task AddWithMappingsAsync(TestSession session, IEnumerable<SessionQuestionMapping> mappings, CancellationToken ct = default)
     {
+        var mappingList = mappings.ToList();
         var strategy = _context.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
         {
+            // Clear tracker before each attempt — prevents duplicate-insert on retry
+            _context.ChangeTracker.Clear();
             await using var tx = await _context.Database.BeginTransactionAsync(ct);
             try
             {
                 await _context.TestSessions.AddAsync(session, ct);
-                await _context.SessionQuestionMappings.AddRangeAsync(mappings, ct);
+                await _context.SessionQuestionMappings.AddRangeAsync(mappingList, ct);
                 await _context.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
             }
@@ -105,12 +139,14 @@ public class AnswerRepository : IAnswerRepository
 
         try
         {
-            await _context.Database.ExecuteSqlRawAsync(sql,
-                new SqlParameter("@SessionId", sessionId),
-                new SqlParameter("@QuestionId", questionId),
-                new SqlParameter("@Option", selectedOption.ToString()),
-                new SqlParameter("@IdempotencyKey", idempotencyKey),
-                ct);
+            var parameters = new SqlParameter[]
+            {
+                new("@SessionId",      sessionId),
+                new("@QuestionId",     questionId),
+                new("@Option",         selectedOption.ToString()),
+                new("@IdempotencyKey", idempotencyKey)
+            };
+            await _context.Database.ExecuteSqlRawAsync(sql, parameters, ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException sqlEx &&
             (sqlEx.Number == 2601 || sqlEx.Number == 2627))

@@ -1,254 +1,325 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Calendar, Clock, Users, BookOpen, Send, AlertCircle } from 'lucide-react';
-import { mockQuestionBatches, mockCandidateBatches } from '../data/mockData';
+import { Calendar, Clock, Users, BookOpen, Send, Loader2, ChevronDown } from 'lucide-react';
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'sonner';
+import {
+  getQuestionBatches, getBatches, getAdminUsers, createTest, createAssignment,
+  QuestionBatchDto, CandidateBatchDto, CandidateDto,
+} from '../services/apiService';
+
+const inputCss: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.8)',
+  border: '1px solid rgba(15,76,117,0.18)',
+  color: '#2D3436',
+  outline: 'none',
+};
+
+const cardCss: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.70)',
+  border: '1px solid rgba(15,76,117,0.12)',
+  backdropFilter: 'blur(16px)',
+  boxShadow: '0 4px 16px rgba(15,76,117,0.08)',
+};
+
+// Today's date in YYYY-MM-DD for min attribute
+const todayDate = () => new Date().toISOString().split('T')[0];
+// Current time HH:MM for min attribute on time inputs (only relevant when date = today)
+const nowTime = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 const CreateTest: React.FC = () => {
   const navigate = useNavigate();
-  const [testTitle, setTestTitle] = useState('');
-  const [selectedQuestionBatch, setSelectedQuestionBatch] = useState('');
-  const [selectedCandidateBatch, setSelectedCandidateBatch] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [duration, setDuration] = useState('60');
-  const [assignmentType, setAssignmentType] = useState<'batch' | 'individual'>('batch');
-  const [individualEmail, setIndividualEmail] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [questionBatches,  setQuestionBatches]  = useState<QuestionBatchDto[]>([]);
+  const [candidateBatches, setCandidateBatches] = useState<CandidateBatchDto[]>([]);
+  const [candidates,       setCandidates]       = useState<CandidateDto[]>([]);
+  const [saving,           setSaving]           = useState(false);
+
+  // Form fields
+  const [testTitle,             setTestTitle]             = useState('');
+  const [description,           setDescription]           = useState('');
+  const [selectedQuestionBatch, setSelectedQuestionBatch] = useState('');
+  const [scheduledDate,         setScheduledDate]         = useState('');
+  const [scheduledTime,         setScheduledTime]         = useState('');
+  const [deadlineDate,          setDeadlineDate]          = useState('');
+  const [deadlineTime,          setDeadlineTime]          = useState('');
+  const [duration,              setDuration]              = useState('60');
+  const [passingScore,          setPassingScore]          = useState('70');
+  const [maxAttempts,           setMaxAttempts]           = useState('1');
+  const [assignmentType,        setAssignmentType]        = useState<'batch' | 'individual'>('batch');
+  const [selectedBatch,         setSelectedBatch]         = useState('');
+  const [selectedCandidateId,   setSelectedCandidateId]   = useState('');
+
+  const selectedQBatch = questionBatches.find(qb => qb.questionBatchId === selectedQuestionBatch);
+  // Question count is derived from the selected batch — not editable
+  const questionCount = selectedQBatch?.questionCount ?? 0;
+
+  useEffect(() => {
+    getQuestionBatches().then(setQuestionBatches).catch(() => {});
+    getBatches().then(setCandidateBatches).catch(() => {});
+    getAdminUsers().then(cs => setCandidates(cs.filter(c => c.role === 'Candidate'))).catch(() => {});
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!testTitle || !selectedQuestionBatch || !scheduledDate || !scheduledTime || !duration) {
-      toast.error('Please fill in all required fields');
-      return;
+    if (!testTitle || !selectedQuestionBatch || !scheduledDate || !scheduledTime || !deadlineDate || !deadlineTime) {
+      toast.error('Please fill in all required fields'); return;
+    }
+    if (assignmentType === 'batch' && !selectedBatch) {
+      toast.error('Please select a candidate batch'); return;
+    }
+    if (assignmentType === 'individual' && !selectedCandidateId) {
+      toast.error('Please select a candidate'); return;
+    }
+    if (questionCount === 0) {
+      toast.error('Selected question batch has no questions'); return;
     }
 
-    if (assignmentType === 'batch' && !selectedCandidateBatch) {
-      toast.error('Please select a candidate batch');
-      return;
+    const scheduledStart = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+    const deadline       = new Date(`${deadlineDate}T${deadlineTime}`).toISOString();
+
+    if (new Date(deadline) <= new Date(scheduledStart)) {
+      toast.error('Deadline must be after scheduled start'); return;
     }
 
-    if (assignmentType === 'individual' && !individualEmail) {
-      toast.error('Please enter a candidate email');
-      return;
+    setSaving(true);
+    try {
+      const { testId } = await createTest({
+        title: testTitle,
+        durationMinutes: parseInt(duration),
+        passingScorePercent: parseFloat(passingScore),
+        description: description || undefined,
+      });
+
+      await createAssignment({
+        testId,
+        questionBatchId: selectedQuestionBatch,
+        questionCount,
+        scheduledStart,
+        deadline,
+        maxAttempts: parseInt(maxAttempts),
+        batchId:     assignmentType === 'batch'      ? selectedBatch       : undefined,
+        candidateId: assignmentType === 'individual' ? selectedCandidateId : undefined,
+      });
+
+      toast.success('Test created and assigned!');
+      setTimeout(() => navigate('/admin/dashboard'), 1000);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error?.message ?? 'Failed to create test.');
+    } finally {
+      setSaving(false);
     }
-
-    toast.success('Test assignment created successfully!', {
-      description: 'Notifications will be sent to candidates via Teams',
-    });
-
-    setTimeout(() => {
-      navigate('/admin/dashboard');
-    }, 1500);
   };
 
-  const selectedQBatch = mockQuestionBatches.find((qb) => qb.id === selectedQuestionBatch);
+  const Label: React.FC<{ text: string; required?: boolean }> = ({ text, required }) => (
+    <label className="block text-xs mb-1.5" style={{ color: '#636E72' }}>
+      {text}{required && <span style={{ color: '#E07A5F' }}> *</span>}
+    </label>
+  );
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl mb-2 text-gray-900 dark:text-white">Create Test Assignment</h1>
-          <p className="text-gray-600 dark:text-gray-400">Schedule and assign tests to candidates</p>
+          <h1 className="text-2xl mb-1" style={{ color: '#0F4C75' }}>Create Test Assignment</h1>
+          <p className="text-sm" style={{ color: '#636E72' }}>Schedule and assign a test to candidates</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Test Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-            <h2 className="text-xl mb-4 text-gray-900 dark:text-white">Test Details</h2>
+        <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* ── Test Details ── */}
+          <div className="rounded-2xl p-6" style={cardCss}>
+            <h2 className="text-sm font-semibold mb-5" style={{ color: '#0F4C75' }}>Test Details</h2>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                  Test Title <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={testTitle}
-                  onChange={(e) => setTestTitle(e.target.value)}
+                <Label text="Test Title" required />
+                <input type="text" value={testTitle} onChange={e => setTestTitle(e.target.value)}
                   placeholder="e.g., React Fundamentals Assessment"
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
+                  className="w-full px-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                  Question Batch <span className="text-red-600">*</span>
-                </label>
-                <select
-                  value={selectedQuestionBatch}
-                  onChange={(e) => setSelectedQuestionBatch(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a question batch</option>
-                  {mockQuestionBatches.map((batch) => (
-                    <option key={batch.id} value={batch.id}>
-                      {batch.name} - {batch.questionCount} questions ({batch.difficulty})
-                    </option>
-                  ))}
-                </select>
+                <Label text="Description" />
+                <input type="text" value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder="Optional description"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm" style={inputCss} />
+              </div>
 
+              <div>
+                <Label text="Question Batch" required />
+                <div className="relative">
+                  <select value={selectedQuestionBatch} onChange={e => setSelectedQuestionBatch(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm appearance-none" style={inputCss} required>
+                    <option value="">— Select a question batch —</option>
+                    {questionBatches.map(b => (
+                      <option key={b.questionBatchId} value={b.questionBatchId}>
+                        {b.name} — {b.questionCount} questions{b.difficulty ? ` (${b.difficulty})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#636E72' }} />
+                </div>
                 {selectedQBatch && (
-                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
-                    <div className="flex items-center gap-2 text-blue-900 dark:text-blue-400">
-                      <BookOpen className="w-4 h-4" />
-                      <span>
-                        Domain: {selectedQBatch.domain} | Topic: {selectedQBatch.topic}
-                      </span>
-                    </div>
+                  <div className="mt-2 flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+                    style={{ background: 'rgba(27,154,170,0.08)', color: '#1B9AAA' }}>
+                    <BookOpen className="w-3.5 h-3.5" />
+                    {[selectedQBatch.domain, selectedQBatch.topic, selectedQBatch.difficulty].filter(Boolean).join(' · ')}
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Question count — read only, derived from batch */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                    Scheduled Date <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+                  <Label text="Questions" />
+                  <div className="px-4 py-2.5 rounded-xl text-sm flex items-center gap-2"
+                    style={{ background: 'rgba(15,76,117,0.05)', border: '1px solid rgba(15,76,117,0.12)', color: '#0F4C75' }}>
+                    <BookOpen className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#1B9AAA' }} />
+                    {questionCount > 0 ? questionCount : <span style={{ color: '#B2BEC3' }}>—</span>}
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: '#B2BEC3' }}>From batch</p>
                 </div>
-
                 <div>
-                  <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                    Scheduled Time <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+                  <Label text="Duration (min)" required />
+                  <input type="number" value={duration} onChange={e => setDuration(e.target.value)}
+                    min="1" max="300" className="w-full px-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
+                </div>
+                <div>
+                  <Label text="Passing Score %" required />
+                  <input type="number" value={passingScore} onChange={e => setPassingScore(e.target.value)}
+                    min="0" max="100" className="w-full px-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                  Duration (minutes) <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  min="1"
-                  max="300"
-                  placeholder="60"
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
+                <Label text="Max Attempts" />
+                <input type="number" value={maxAttempts} onChange={e => setMaxAttempts(e.target.value)}
+                  min="1" max="5" className="w-32 px-4 py-2.5 rounded-xl text-sm" style={inputCss} />
               </div>
             </div>
           </div>
 
-          {/* Assignment Target */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-            <h2 className="text-xl mb-4 text-gray-900 dark:text-white">Assign To</h2>
+          {/* ── Schedule ── */}
+          <div className="rounded-2xl p-6" style={cardCss}>
+            <h2 className="text-sm font-semibold mb-5" style={{ color: '#0F4C75' }}>Schedule</h2>
 
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setAssignmentType('batch')}
-                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                    assignmentType === 'batch'
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  <Users className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                  <div className="text-gray-900 dark:text-white">Candidate Batch</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAssignmentType('individual')}
-                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                    assignmentType === 'individual'
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  <Users className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-                  <div className="text-gray-900 dark:text-white">Individual Candidate</div>
-                </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label text="Start Date" required />
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#B2BEC3' }} />
+                  <input type="date" value={scheduledDate}
+                    min={todayDate()}
+                    onChange={e => setScheduledDate(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
+                </div>
               </div>
+              <div>
+                <Label text="Start Time" required />
+                <div className="relative">
+                  <Clock className="absolute left-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#B2BEC3' }} />
+                  <input type="time" value={scheduledTime}
+                    min={scheduledDate === todayDate() ? nowTime() : undefined}
+                    onChange={e => setScheduledTime(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
+                </div>
+              </div>
+              <div>
+                <Label text="Deadline Date" required />
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#B2BEC3' }} />
+                  <input type="date" value={deadlineDate}
+                    min={scheduledDate || todayDate()}
+                    onChange={e => setDeadlineDate(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
+                </div>
+              </div>
+              <div>
+                <Label text="Deadline Time" required />
+                <div className="relative">
+                  <Clock className="absolute left-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#B2BEC3' }} />
+                  <input type="time" value={deadlineTime}
+                    min={deadlineDate === scheduledDate ? scheduledTime || undefined : undefined}
+                    onChange={e => setDeadlineTime(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm" style={inputCss} required />
+                </div>
+              </div>
+            </div>
+          </div>
 
-              {assignmentType === 'batch' ? (
-                <div>
-                  <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                    Select Candidate Batch <span className="text-red-600">*</span>
-                  </label>
-                  <select
-                    value={selectedCandidateBatch}
-                    onChange={(e) => setSelectedCandidateBatch(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required={assignmentType === 'batch'}
-                  >
-                    <option value="">Select a candidate batch</option>
-                    {mockCandidateBatches.map((batch) => (
-                      <option key={batch.id} value={batch.id}>
-                        {batch.name} - {batch.candidateCount} candidates
+          {/* ── Assign To ── */}
+          <div className="rounded-2xl p-6" style={cardCss}>
+            <h2 className="text-sm font-semibold mb-5" style={{ color: '#0F4C75' }}>Assign To</h2>
+
+            {/* Toggle */}
+            <div className="flex gap-1 p-1 rounded-xl mb-5 w-fit"
+              style={{ background: 'rgba(15,76,117,0.06)' }}>
+              {(['batch', 'individual'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setAssignmentType(t)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all"
+                  style={{
+                    background: assignmentType === t ? 'rgba(15,76,117,0.12)' : 'transparent',
+                    color: assignmentType === t ? '#0F4C75' : '#636E72',
+                    border: assignmentType === t ? '1px solid rgba(15,76,117,0.2)' : '1px solid transparent',
+                  }}>
+                  <Users className="w-4 h-4" />
+                  {t === 'batch' ? 'Candidate Batch' : 'Individual'}
+                </button>
+              ))}
+            </div>
+
+            {assignmentType === 'batch' ? (
+              <div>
+                <Label text="Select Candidate Batch" required />
+                <div className="relative">
+                  <select value={selectedBatch} onChange={e => setSelectedBatch(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm appearance-none" style={inputCss} required>
+                    <option value="">— Choose a batch —</option>
+                    {candidateBatches.map(b => (
+                      <option key={b.batchId} value={b.batchId}>
+                        {b.name} — {b.candidateCount} candidates
                       </option>
                     ))}
                   </select>
+                  <ChevronDown className="absolute right-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#636E72' }} />
                 </div>
-              ) : (
-                <div>
-                  <label className="block text-sm mb-2 text-gray-700 dark:text-gray-300">
-                    Candidate Email <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={individualEmail}
-                    onChange={(e) => setIndividualEmail(e.target.value)}
-                    placeholder="candidate@company.com"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required={assignmentType === 'individual'}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Teams Integration Notice */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-blue-900 dark:text-blue-400 mb-1">Automatic Notifications</h3>
-                <p className="text-sm text-blue-800 dark:text-blue-500">
-                  Test invitations will be sent via Microsoft Teams adaptive cards 5 minutes before the scheduled
-                  start time. The test will also be added to candidates' Teams calendars.
-                </p>
               </div>
-            </div>
+            ) : (
+              <div>
+                <Label text="Select Candidate" required />
+                <div className="relative">
+                  <select value={selectedCandidateId} onChange={e => setSelectedCandidateId(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm appearance-none" style={inputCss} required>
+                    <option value="">— Choose a candidate —</option>
+                    {candidates.map(c => (
+                      <option key={c.candidateId} value={c.candidateId}>
+                        {c.displayName} — {c.email}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-3 w-4 h-4 pointer-events-none" style={{ color: '#636E72' }} />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/dashboard')}
-              className="px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
+          {/* ── Actions ── */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button type="button" onClick={() => navigate('/admin/dashboard')}
+              className="px-5 py-2.5 rounded-xl text-sm"
+              style={{ background: 'rgba(15,76,117,0.06)', border: '1px solid rgba(15,76,117,0.12)', color: '#636E72' }}>
               Cancel
             </button>
-
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-lg"
-            >
-              <Send className="w-5 h-5" />
-              Create & Schedule Test
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm text-white disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)', boxShadow: '0 4px 16px rgba(27,154,170,0.3)' }}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {saving ? 'Creating...' : 'Create & Schedule'}
             </button>
           </div>
         </form>

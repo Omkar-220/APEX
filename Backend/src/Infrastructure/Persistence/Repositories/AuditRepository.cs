@@ -28,6 +28,30 @@ public class AuditRepository : IAuditRepository
                              (e.EventType == "focus_lost" ||
                               e.EventType == "multi_tab_opened" ||
                               e.EventType == "fullscreen_exit"), ct);
+
+    public async Task<Dictionary<Guid, int>> CountViolationsBatchAsync(
+        IEnumerable<Guid> sessionIds, CancellationToken ct = default)
+    {
+        var ids = sessionIds.ToList();
+        if (ids.Count == 0) return new Dictionary<Guid, int>();
+
+        // Single query — group by SessionId in the DB
+        var counts = await _context.AuditEvents
+            .Where(e => ids.Contains(e.SessionId) &&
+                        (e.EventType == "focus_lost" ||
+                         e.EventType == "multi_tab_opened" ||
+                         e.EventType == "fullscreen_exit"))
+            .GroupBy(e => e.SessionId)
+            .Select(g => new { SessionId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Seed all session IDs with 0, then overwrite with actual counts
+        var result = ids.ToDictionary(id => id, _ => 0);
+        foreach (var row in counts)
+            result[row.SessionId] = row.Count;
+
+        return result;
+    }
 }
 
 public class WebhookOutboxRepository : IWebhookOutboxRepository

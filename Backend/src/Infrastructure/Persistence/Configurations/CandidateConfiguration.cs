@@ -1,8 +1,6 @@
 using Domain.Entities;
 using Domain.Enums;
-using Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
@@ -18,40 +16,30 @@ public class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
         builder.Property(c => c.CandidateId)
             .HasDefaultValueSql("NEWID()");
 
-        builder.Property(c => c.Email)
-            .HasConversion(
-                e => e.Value,
-                v => Email.Create(v),
-                new ValueComparer<Email>(
-                    (l, r) => l!.Value == r!.Value,
-                    v => v.Value.GetHashCode(),
-                    v => Email.Create(v.Value)))
+        builder.Property(c => c.EmailValue)
+            .HasColumnName("Email")
             .HasColumnType("NVARCHAR(255)")
             .IsRequired();
 
-        builder.HasIndex(c => c.Email).IsUnique();
+        builder.HasIndex(c => c.EmailValue)
+            .IsUnique()
+            .HasDatabaseName("IX_Candidates_Email");
 
-        builder.Property(c => c.AzureAdOid)
-            .HasConversion(
-                o => o.Value,
-                v => AzureAdOid.Create(v),
-                new ValueComparer<AzureAdOid>(
-                    (l, r) => l!.Value == r!.Value,
-                    v => v.Value.GetHashCode(),
-                    v => AzureAdOid.Create(v.Value)))
+        builder.Property(c => c.PasswordHash)
+            .HasColumnType("NVARCHAR(255)")
+            .IsRequired(false);
+
+        builder.Property(c => c.AzureAdOidValue)
+            .HasColumnName("AzureAdOid")
             .HasColumnType("VARCHAR(128)")
             .IsRequired();
 
-        builder.HasIndex(c => c.AzureAdOid).IsUnique();
+        builder.HasIndex(c => c.AzureAdOidValue)
+            .IsUnique()
+            .HasDatabaseName("IX_Candidates_AzureAdOid");
 
-        builder.Property(c => c.DisplayName)
-            .HasConversion(
-                d => d.Value,
-                v => DisplayName.Create(v),
-                new ValueComparer<DisplayName>(
-                    (l, r) => l!.Value == r!.Value,
-                    v => v.Value.GetHashCode(),
-                    v => DisplayName.Create(v.Value)))
+        builder.Property(c => c.DisplayNameValue)
+            .HasColumnName("DisplayName")
             .HasColumnType("NVARCHAR(255)")
             .IsRequired();
 
@@ -64,6 +52,11 @@ public class CandidateConfiguration : IEntityTypeConfiguration<Candidate>
             .HasColumnType("DATETIME2")
             .HasDefaultValueSql("SYSUTCDATETIME()")
             .IsRequired();
+
+        // Ignore computed value object properties — EF must not try to map these
+        builder.Ignore(c => c.Email);
+        builder.Ignore(c => c.AzureAdOid);
+        builder.Ignore(c => c.DisplayName);
 
         builder.HasMany(c => c.BatchMemberships)
             .WithOne(bm => bm.Candidate)

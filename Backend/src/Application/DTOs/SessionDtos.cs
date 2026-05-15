@@ -48,3 +48,59 @@ public record AdminSessionDto(
     int? Score,
     DateTime StartTime
 );
+
+public record CompletedSessionDto(
+    Guid SessionId,
+    Guid TestId,
+    string TestTitle,
+    Guid AssignmentId,
+    string? BatchName,
+    string CandidateEmail,
+    string CandidateDisplayName,
+    int Score,
+    int TotalQuestions,
+    decimal Percentage,
+    bool Passed,
+    int ViolationCount,
+    DateTime StartTime,
+    DateTime EndTime,
+    int DurationSeconds
+);
+
+public record ScorecardAnswerDto(
+    Guid QuestionId,
+    string Content,
+    string OptionA,
+    string OptionB,
+    string OptionC,
+    string OptionD,
+    string CorrectOption,
+    string? SelectedOption,
+    bool IsCorrect,
+    decimal Weightage
+);
+
+public record SessionScorecardDto(
+    Guid SessionId,
+    string CandidateEmail,
+    string CandidateDisplayName,
+    string TestTitle,
+    string? BatchName,
+    int Score,
+    int TotalQuestions,
+    decimal Percentage,
+    bool Passed,
+    decimal PassingScorePercent,
+    int ViolationCount,
+    DateTime StartTime,
+    DateTime EndTime,
+    int DurationSeconds,
+    List<ScorecardAnswerDto> Answers,
+    List<AuditEventDto> AuditEvents
+);
+
+public record AuditEventDto(
+    string EventType,
+    string? Payload,
+    DateTime OccurredAt
+);

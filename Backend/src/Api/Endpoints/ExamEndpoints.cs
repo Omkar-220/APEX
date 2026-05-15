@@ -56,6 +56,32 @@ public static class ExamEndpoints
             return Results.Ok(result);
         });
 
+        // GET /api/sessions/{sessionId}/questions/position/{position}
+        group.MapGet("/sessions/{sessionId:guid}/questions/position/{position:int}", async (
+            Guid sessionId,
+            int position,
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            GetQuestionHandler handler,
+            ISessionRepository sessionRepo,
+            ISessionQuestionMappingRepository mappingRepo,
+            CancellationToken ct) =>
+        {
+            await SessionGuard.ValidateAsync(ctx, sessionId, sessionRepo, ct);
+            var oid   = SessionGuard.GetOid(ctx);
+            var email = ctx.User.FindFirstValue("preferred_username") ?? "";
+            var name  = ctx.User.FindFirstValue("name") ?? "";
+            var me    = await meHandler.HandleAsync(new GetMeQuery(oid, email, name), ct);
+
+            var mapping = await mappingRepo.GetByPositionAsync(sessionId, position, ct)
+                ?? throw new KeyNotFoundException($"Position {position} not found in session.");
+
+            var result = await handler.HandleAsync(
+                new GetQuestionQuery(sessionId, me.CandidateId, mapping.QuestionId), ct);
+
+            return Results.Ok(result);
+        });
+
         // GET /api/sessions/{sessionId}/questions/{questionId}
         group.MapGet("/sessions/{sessionId:guid}/questions/{questionId:guid}", async (
             Guid sessionId,
@@ -99,8 +125,11 @@ public static class ExamEndpoints
             var name  = ctx.User.FindFirstValue("name") ?? "";
             var me    = await meHandler.HandleAsync(new GetMeQuery(oid, email, name), ct);
 
+            if (string.IsNullOrEmpty(body.SelectedOption) || body.SelectedOption.Length != 1)
+                return Results.BadRequest(new { ok = false, error = new { code = "INVALID_OPTION", message = "SelectedOption must be a single character A-D." } });
+
             await handler.HandleAsync(new SubmitAnswerCommand(
-                sessionId, me.CandidateId, body.QuestionId, body.SelectedOption, idempotencyKey), ct);
+                sessionId, me.CandidateId, body.QuestionId, body.SelectedOption[0], idempotencyKey), ct);
 
             return Results.Ok(new { ok = true });
         });

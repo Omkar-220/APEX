@@ -1,34 +1,29 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Upload, UserPlus, UserMinus, ArrowLeft, Save, Plus, X, Shield } from 'lucide-react';
-import { mockCandidateBatches, type Difficulty } from '../data/mockData';
+import { createBatch } from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'sonner';
+
+type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
 const BatchEditor: React.FC = () => {
   const { batchId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const isNew = batchId === 'new';
-  const existing = isNew ? null : mockCandidateBatches.find((b) => b.id === batchId);
+  const isNew = !batchId || batchId === 'new';
 
-  // Batch metadata
-  const [name, setName] = useState(existing?.name || '');
-  const [domain, setDomain] = useState(existing?.domain || '');
-  const [topic, setTopic] = useState(existing?.topic || '');
-  const [difficulty, setDifficulty] = useState<Difficulty>(existing?.difficulty || 'Intermediate');
-
-  // Candidates (email-based on frontend)
-  const [candidates, setCandidates] = useState<string[]>(existing?.candidates || []);
+  const [name, setName] = useState('');
+  const [domain, setDomain] = useState('');
+  const [topic, setTopic] = useState('');
+  const [difficulty, setDifficulty] = useState<Difficulty>('Intermediate');
+  const [candidates, setCandidates] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
-
-  // Admins — all have equal ownership
-  const [admins, setAdmins] = useState<string[]>(
-    existing?.adminEmails || (user?.email ? [user.email] : [])
-  );
+  const [admins, setAdmins] = useState<string[]>(user?.email ? [user.email] : []);
   const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleAddCandidate = () => {
     const email = newEmail.trim().toLowerCase();
@@ -59,11 +54,18 @@ const BatchEditor: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { toast.error('Batch name is required'); return; }
-    if (admins.length === 0) { toast.error('At least one admin is required'); return; }
-    toast.success(isNew ? `Batch "${name}" created` : `Batch "${name}" updated`);
-    setTimeout(() => navigate('/admin/batches'), 1500);
+    setSaving(true);
+    try {
+      await createBatch({ name: name.trim(), domain: domain || undefined, topic: topic || undefined, difficulty: difficulty || undefined });
+      toast.success(isNew ? `Batch "${name}" created` : `Batch "${name}" updated`);
+      setTimeout(() => navigate('/admin/batches'), 1200);
+    } catch {
+      toast.error('Failed to save batch');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputStyle = {
@@ -93,8 +95,8 @@ const BatchEditor: React.FC = () => {
         </button>
 
         <div className="mb-8">
-          <h1 className="text-2xl mb-1" style={{ color: '#0F4C75', fontWeight: 600 }}>
-            {isNew ? 'Create Candidate Batch' : `Edit — ${existing?.name}`}
+          <h1 className="text-2xl mb-1" style={{ color: '#0F4C75' }}>
+            {isNew ? 'Create Candidate Batch' : 'Edit Batch'}
           </h1>
           <p className="text-sm" style={{ color: '#636E72' }}>
             All admins listed have equal management privileges over this batch.
@@ -286,11 +288,12 @@ const BatchEditor: React.FC = () => {
             </button>
             <button
               onClick={handleSave}
+              disabled={saving}
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm text-white"
-              style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}
+              style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)', opacity: saving ? 0.7 : 1 }}
             >
               <Save className="w-4 h-4" />
-              {isNew ? 'Create Batch' : 'Save Changes'}
+              {saving ? 'Saving...' : isNew ? 'Create Batch' : 'Save Changes'}
             </button>
           </div>
         </div>

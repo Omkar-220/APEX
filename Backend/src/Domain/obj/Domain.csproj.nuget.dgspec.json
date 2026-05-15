@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {}
+    "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {}
   },
   "projects": {
-    "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
+    "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
+        "projectUniqueName": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
         "projectName": "Domain",
-        "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
+        "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
         "packagesPath": "C:\\Users\\omkar.vyavahare\\.nuget\\packages\\",
-        "outputPath": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\obj\\",
+        "outputPath": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\omkar.vyavahare\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -43,6 +43,12 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

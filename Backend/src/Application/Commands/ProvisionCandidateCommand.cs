@@ -14,7 +14,14 @@ public class ProvisionCandidateHandler
 
     public async Task<CandidateDto> HandleAsync(ProvisionCandidateCommand cmd, CancellationToken ct = default)
     {
-        var existing = await _repo.GetByOidAsync(cmd.Oid, ct);
+        // Try by CandidateId first (legacy — when oid claim was the CandidateId GUID),
+        // then fall back to AzureAdOid string lookup (current behaviour)
+        Candidate? existing = null;
+        if (Guid.TryParse(cmd.Oid, out var candidateId))
+            existing = await _repo.GetByIdAsync(candidateId, ct);
+
+        existing ??= await _repo.GetByOidAsync(cmd.Oid, ct);
+
         if (existing != null)
         {
             if (existing.DisplayName.Value != cmd.DisplayName)
@@ -34,7 +41,7 @@ public class ProvisionCandidateHandler
 
     private static CandidateDto ToDto(Candidate c) => new(
         c.CandidateId,
-        c.Email.Value,
-        c.DisplayName.Value,
+        c.EmailValue,
+        c.DisplayNameValue,
         c.Role.ToString());
 }

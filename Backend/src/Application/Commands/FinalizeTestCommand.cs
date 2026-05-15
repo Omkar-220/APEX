@@ -24,6 +24,7 @@ public class FinalizeTestHandler : IFinalizeTestHandler
     private readonly IQuestionRepository _questionRepo;
     private readonly ITestRepository _testRepo;
     private readonly ICandidateRepository _candidateRepo;
+    private readonly ITestAssignmentRepository _assignmentRepo;
     private readonly INotificationPort _notification;
     private readonly IResultCachePort _resultCache;
     private readonly SessionStatusCacheService _statusCache;
@@ -35,6 +36,7 @@ public class FinalizeTestHandler : IFinalizeTestHandler
         IQuestionRepository questionRepo,
         ITestRepository testRepo,
         ICandidateRepository candidateRepo,
+        ITestAssignmentRepository assignmentRepo,
         INotificationPort notification,
         IResultCachePort resultCache,
         SessionStatusCacheService statusCache)
@@ -45,6 +47,7 @@ public class FinalizeTestHandler : IFinalizeTestHandler
         _questionRepo = questionRepo;
         _testRepo = testRepo;
         _candidateRepo = candidateRepo;
+        _assignmentRepo = assignmentRepo;
         _notification = notification;
         _resultCache = resultCache;
         _statusCache = statusCache;
@@ -100,6 +103,15 @@ public class FinalizeTestHandler : IFinalizeTestHandler
 
         // Invalidate status cache immediately — candidate sees Completed on next poll
         _statusCache.Invalidate(cmd.SessionId);
+
+        // Mark assignment Completed — all sessions for this assignment are now done
+        var assignment = await _assignmentRepo.GetByIdAsync(session.AssignmentId, ct);
+        if (assignment != null && assignment.Status != Domain.Enums.AssignmentStatus.Completed
+                               && assignment.Status != Domain.Enums.AssignmentStatus.Expired)
+        {
+            assignment.MarkCompleted();
+            await _assignmentRepo.UpdateAsync(assignment, ct);
+        }
 
         // Enqueue webhook notification
         var candidate = await _candidateRepo.GetByIdAsync(session.CandidateId, ct);

@@ -152,6 +152,7 @@ public class FinalizeTestHandlerTests
     private readonly Mock<IQuestionRepository> _questionRepo = new();
     private readonly Mock<ITestRepository> _testRepo = new();
     private readonly Mock<ICandidateRepository> _candidateRepo = new();
+    private readonly Mock<ITestAssignmentRepository> _assignmentRepo = new();
     private readonly Mock<INotificationPort> _notification = new();
     private readonly Mock<IResultCachePort> _resultCache = new();
     private readonly SessionStatusCacheService _statusCache;
@@ -168,7 +169,7 @@ public class FinalizeTestHandlerTests
         _sut = new FinalizeTestHandler(
             _sessionRepo.Object, _answerRepo.Object, _mappingRepo.Object,
             _questionRepo.Object, _testRepo.Object, _candidateRepo.Object,
-            _notification.Object, _resultCache.Object, _statusCache);
+            _assignmentRepo.Object, _notification.Object, _resultCache.Object, _statusCache);
     }
 
     private void SetupActiveSession(TestSession session, Test test,
@@ -186,6 +187,8 @@ public class FinalizeTestHandlerTests
                       .ReturnsAsync(TestBuilders.MakeCandidate());
         _notification.Setup(r => r.EnqueueAsync(It.IsAny<string>(), It.IsAny<object>(), default))
                      .Returns(Task.CompletedTask);
+        _assignmentRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default))
+                       .ReturnsAsync((Domain.Entities.TestAssignment?)null);
     }
 
     private static (List<Answer>, List<SessionQuestionMapping>, List<Question>)

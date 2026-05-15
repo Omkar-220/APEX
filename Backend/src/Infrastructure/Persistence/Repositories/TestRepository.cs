@@ -56,6 +56,9 @@ public class TestAssignmentRepository : ITestAssignmentRepository
     public Task<List<TestAssignment>> GetAllAsync(CancellationToken ct = default) =>
         _context.TestAssignments
             .Include(a => a.Test)
+            .Include(a => a.QuestionBatch)
+            .Include(a => a.Batch)
+            .Include(a => a.Candidate)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(ct);
 

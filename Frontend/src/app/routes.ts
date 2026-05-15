@@ -1,10 +1,12 @@
 import { createBrowserRouter } from 'react-router';
 import { RootLayout, RootErrorBoundary } from './components/RootLayout';
 import Login from './components/Login';
+import Register from './components/Register';
 import CandidateDashboard from './components/CandidateDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import TestInterface from './components/TestInterface';
 import TestReview from './components/TestReview';
+import TestExpired from './components/TestExpired';
 import BatchEditor from './components/BatchEditor';
 import BatchesPage from './components/BatchesPage';
 import QuestionsPage from './components/QuestionsPage';
@@ -15,6 +17,8 @@ import AssessTest from './components/AssessTest';
 import QuestionEditor from './components/QuestionEditor';
 import TestComplete from './components/TestComplete';
 import NotFound from './components/NotFound';
+import CompletedTests from './components/CompletedTests';
+import CandidateScorecard from './components/CandidateScorecard';
 
 export const router = createBrowserRouter([
   {
@@ -22,6 +26,8 @@ export const router = createBrowserRouter([
     Component: RootLayout,
     ErrorBoundary: RootErrorBoundary,
     children: [
+      { path: 'login', Component: Login },
+      { path: 'register', Component: Register },
       { index: true, Component: Login },
 
       // Candidate
@@ -29,6 +35,7 @@ export const router = createBrowserRouter([
       { path: 'test/:testId', Component: TestInterface },
       { path: 'test-review/:testId', Component: TestReview },
       { path: 'test-complete/:testId', Component: TestComplete },
+      { path: 'test-expired/:sessionId', Component: TestExpired },
 
       // Admin
       { path: 'admin/dashboard', Component: AdminDashboard },
@@ -42,6 +49,8 @@ export const router = createBrowserRouter([
       { path: 'admin/upcoming-test/:testId', Component: UpcomingTestManager },
       { path: 'admin/test-status/:testId', Component: TestStatusDetail },
       { path: 'admin/assess/:testId/:candidateId', Component: AssessTest },
+      { path: 'admin/completed-tests', Component: CompletedTests },
+      { path: 'admin/scorecard/:sessionId', Component: CandidateScorecard },
 
       { path: '*', Component: NotFound },
     ],

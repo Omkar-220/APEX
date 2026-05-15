@@ -7,6 +7,7 @@ public interface IAuditRepository
     Task AddAsync(AuditEvent auditEvent, CancellationToken ct = default);
     Task<List<AuditEvent>> GetBySessionAsync(Guid sessionId, CancellationToken ct = default);
     Task<int> CountViolationsAsync(Guid sessionId, CancellationToken ct = default);
+    Task<Dictionary<Guid, int>> CountViolationsBatchAsync(IEnumerable<Guid> sessionIds, CancellationToken ct = default);
 }
 
 public interface IWebhookOutboxRepository

@@ -20,6 +20,11 @@ public class QuestionRepository : IQuestionRepository
         await _context.Questions.AddAsync(question, ct);
         await _context.SaveChangesAsync(ct);
     }
+    public async Task UpdateAsync(Question question, CancellationToken ct = default)
+    {
+        _context.Questions.Update(question);
+        await _context.SaveChangesAsync(ct);
+    }
 }
 
 public class QuestionBatchRepository : IQuestionBatchRepository
@@ -33,7 +38,10 @@ public class QuestionBatchRepository : IQuestionBatchRepository
             .FirstOrDefaultAsync(qb => qb.QuestionBatchId == questionBatchId, ct);
 
     public Task<List<QuestionBatch>> GetAllAsync(CancellationToken ct = default) =>
-        _context.QuestionBatches.OrderBy(qb => qb.Name).ToListAsync(ct);
+        _context.QuestionBatches
+            .Include(qb => qb.QuestionBatchMembers)
+            .OrderBy(qb => qb.Name)
+            .ToListAsync(ct);
 
     public async Task<List<Guid>> GetQuestionIdsAsync(Guid questionBatchId, CancellationToken ct = default) =>
         await _context.QuestionBatchMembers
@@ -44,6 +52,12 @@ public class QuestionBatchRepository : IQuestionBatchRepository
     public async Task AddAsync(QuestionBatch batch, CancellationToken ct = default)
     {
         await _context.QuestionBatches.AddAsync(batch, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(QuestionBatch batch, CancellationToken ct = default)
+    {
+        _context.QuestionBatches.Update(batch);
         await _context.SaveChangesAsync(ct);
     }
 

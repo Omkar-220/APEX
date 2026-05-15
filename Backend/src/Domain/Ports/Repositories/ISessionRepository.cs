@@ -10,7 +10,11 @@ public interface ISessionRepository
     Task<List<TestSession>> GetActiveExpiredAsync(DateTime utcNow, int durationMinutes, CancellationToken ct = default);
     Task<List<TestSession>> GetByTestAsync(Guid testId, TestSessionStatus? status, CancellationToken ct = default);
     Task<int> CountAttemptsAsync(Guid assignmentId, Guid candidateId, CancellationToken ct = default);
+    Task<int> GetMaxAttemptNumberAsync(Guid assignmentId, Guid candidateId, CancellationToken ct = default);
     Task AddAsync(TestSession session, CancellationToken ct = default);
+
+    /// <summary>Returns the latest completed session per assignment for a batch of assignment IDs.</summary>
+    Task<Dictionary<Guid, TestSession>> GetLatestCompletedByAssignmentsAsync(IEnumerable<Guid> assignmentIds, CancellationToken ct = default);
 
     /// <summary>
     /// Atomically creates a session and its question mappings in a single transaction.

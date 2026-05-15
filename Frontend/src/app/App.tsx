@@ -11,7 +11,7 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <RouterProvider router={router} fallbackElement={<div>Loading...</div>} />
-          <Toaster position="top-right" richColors />
+          <Toaster position="top-right" richColors toastOptions={{ style: { marginTop: '4rem' } }} />
         </AuthProvider>
       </ThemeProvider>
     </React.StrictMode>

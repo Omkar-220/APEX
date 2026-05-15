@@ -41,3 +41,9 @@ public record CreateAssignmentRequest(
     string? CandidateId = null);
 
 public record UpdateRoleRequest(string Role);
+
+public record UpdateQuestionRequest(
+    string Content,
+    string OptionA, string OptionB, string OptionC, string OptionD,
+    char CorrectOption,
+    decimal Weightage = 1);

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj": {}
+    "D:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj": {}
   },
   "projects": {
-    "d:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj": {
+    "D:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj",
+        "projectUniqueName": "D:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj",
         "projectName": "Api",
-        "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj",
+        "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Api\\Api.csproj",
         "packagesPath": "C:\\Users\\omkar.vyavahare\\.nuget\\packages\\",
-        "outputPath": "d:\\TestModule\\APEX\\Backend\\src\\Api\\obj\\",
+        "outputPath": "D:\\TestModule\\APEX\\Backend\\src\\Api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\omkar.vyavahare\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -26,11 +26,11 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj": {
-                "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj"
+              "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj": {
+                "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj"
               },
-              "d:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj": {
-                "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj"
+              "D:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj": {
+                "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj"
               }
             }
           }
@@ -55,6 +55,10 @@
               "target": "Package",
               "version": "[11.11.0, )"
             },
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[9.0.4, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[9.0.4, )"
@@ -72,6 +76,10 @@
             "Scalar.AspNetCore": {
               "target": "Package",
               "version": "[2.3.5, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.9.0, )"
             }
           },
           "imports": [
@@ -97,14 +105,14 @@
         }
       }
     },
-    "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj": {
+    "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj",
+        "projectUniqueName": "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj",
         "projectName": "Application",
-        "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj",
+        "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj",
         "packagesPath": "C:\\Users\\omkar.vyavahare\\.nuget\\packages\\",
-        "outputPath": "d:\\TestModule\\APEX\\Backend\\src\\Application\\obj\\",
+        "outputPath": "D:\\TestModule\\APEX\\Backend\\src\\Application\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\omkar.vyavahare\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -119,8 +127,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
-                "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj"
+              "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
+                "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj"
               }
             }
           }
@@ -178,14 +186,14 @@
         }
       }
     },
-    "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
+    "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
+        "projectUniqueName": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
         "projectName": "Domain",
-        "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
+        "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj",
         "packagesPath": "C:\\Users\\omkar.vyavahare\\.nuget\\packages\\",
-        "outputPath": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\obj\\",
+        "outputPath": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\omkar.vyavahare\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -217,6 +225,12 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -237,14 +251,14 @@
         }
       }
     },
-    "d:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj": {
+    "D:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj",
+        "projectUniqueName": "D:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj",
         "projectName": "Infrastructure",
-        "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj",
+        "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\Infrastructure.csproj",
         "packagesPath": "C:\\Users\\omkar.vyavahare\\.nuget\\packages\\",
-        "outputPath": "d:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\obj\\",
+        "outputPath": "D:\\TestModule\\APEX\\Backend\\src\\Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\omkar.vyavahare\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -259,11 +273,11 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj": {
-                "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj"
+              "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj": {
+                "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Application\\Application.csproj"
               },
-              "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
-                "projectPath": "d:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj"
+              "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj": {
+                "projectPath": "D:\\TestModule\\APEX\\Backend\\src\\Domain\\Domain.csproj"
               }
             }
           }

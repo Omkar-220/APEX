@@ -27,6 +27,12 @@ public class BatchRepository : IBatchRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task UpdateAsync(Batch batch, CancellationToken ct = default)
+    {
+        _context.Batches.Update(batch);
+        await _context.SaveChangesAsync(ct);
+    }
+
     public async Task AddMembersAsync(Guid batchId, IEnumerable<Guid> candidateIds, CancellationToken ct = default)
     {
         var existing = await _context.BatchMembers

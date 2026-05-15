@@ -76,6 +76,17 @@ public class AutoFinalizeService : BackgroundService
                     await context.AuditEvents.AddAsync(
                         Domain.Entities.AuditEvent.Create(session.SessionId, "exam_finalized",
                             "{\"triggeredBy\":\"auto_expired\"}"), ct);
+
+                    // Mark assignment Completed
+                    var assignment = await context.TestAssignments
+                        .FirstOrDefaultAsync(a => a.AssignmentId == session.AssignmentId, ct);
+                    if (assignment != null
+                        && assignment.Status != Domain.Enums.AssignmentStatus.Completed
+                        && assignment.Status != Domain.Enums.AssignmentStatus.Expired)
+                    {
+                        assignment.MarkCompleted();
+                    }
+
                     await context.SaveChangesAsync(ct);
                     _logger.LogInformation("Auto-finalized session {SessionId} with score {Score}",
                         session.SessionId, score);

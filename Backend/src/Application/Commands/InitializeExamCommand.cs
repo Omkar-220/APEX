@@ -39,64 +39,55 @@ public class InitializeExamHandler
     {
         var utcNow = DateTime.UtcNow;
 
-        // 1. Load and validate assignment
         var assignment = await _assignmentRepo.GetByIdAsync(cmd.AssignmentId, ct)
             ?? throw new KeyNotFoundException($"Assignment {cmd.AssignmentId} not found.");
 
         if (assignment.TestId != cmd.TestId)
             throw new UnauthorizedAccessException("Assignment does not match the requested test.");
 
-        // Validate ownership — assignment must target this candidate directly or via batch
-        // (batch membership check is done at the query level — if GetByIdAsync returned it, it's valid)
-
-        // 2. Validate time window and attempt limits
         var existingAttempts = await _sessionRepo.CountAttemptsAsync(cmd.AssignmentId, cmd.CandidateId, ct);
         assignment.ValidateCanStart(utcNow, existingAttempts);
 
-        // 3. Load test
+        var nextAttemptNumber = await _sessionRepo.GetMaxAttemptNumberAsync(cmd.AssignmentId, cmd.CandidateId, ct) + 1;
+
         var test = await _testRepo.GetByIdAsync(assignment.TestId, ct)
             ?? throw new KeyNotFoundException($"Test {assignment.TestId} not found.");
 
-        // 4. Load question pool
         var questionIds = await _questionBatchRepo.GetQuestionIdsAsync(assignment.QuestionBatchId, ct);
         if (questionIds.Count < assignment.QuestionCount)
-            throw new InvalidOperationException("Question batch has insufficient questions.");
+            throw new InvalidOperationException($"Question batch has insufficient questions: has {questionIds.Count}, needs {assignment.QuestionCount}.");
 
-        // 5. Deterministic question selection and ordering
-        var orderSeed = SeedGenerator.ForQuestionOrder(
-            cmd.CandidateId, cmd.TestId, existingAttempts + 1, _appSalt);
-
+        var orderSeed = SeedGenerator.ForQuestionOrder(cmd.CandidateId, cmd.TestId, nextAttemptNumber, _appSalt);
         var selectedIds = SeededPrng.SelectRandom(questionIds, assignment.QuestionCount, orderSeed);
         var questions = await _questionRepo.GetByIdsAsync(selectedIds, ct);
 
-        // Preserve the seeded order
         var orderedQuestions = selectedIds
             .Select(id => questions.First(q => q.QuestionId == id))
             .ToList();
 
-        // 6 + 7. Create session and mappings atomically
         var session = TestSession.Create(
             cmd.AssignmentId, cmd.CandidateId, cmd.TestId,
-            cmd.CandidateOid, existingAttempts + 1);
+            cmd.CandidateOid, nextAttemptNumber);
 
         var mappings = orderedQuestions.Select((q, idx) =>
         {
-            var optionSeed = SeedGenerator.ForOptionShuffle(
-                cmd.CandidateId, cmd.TestId, q.QuestionId, _appSalt);
+            var optionSeed = SeedGenerator.ForOptionShuffle(cmd.CandidateId, cmd.TestId, q.QuestionId, _appSalt);
             var optionMap = OptionShuffler.Shuffle(optionSeed);
-            var mappingJson = JsonSerializer.Serialize(optionMap);
-            return SessionQuestionMapping.Create(
-                session.SessionId, idx + 1, q.QuestionId, mappingJson);
+            return SessionQuestionMapping.Create(session.SessionId, idx + 1, q.QuestionId, JsonSerializer.Serialize(optionMap));
         }).ToList();
 
         await _sessionRepo.AddWithMappingsAsync(session, mappings, ct);
 
-        var timeRemaining = session.ComputeTimeRemainingSec(test.DurationMinutes, DateTime.UtcNow);
+        if (assignment.Status == Domain.Enums.AssignmentStatus.Pending)
+        {
+            assignment.MarkActive();
+            await _assignmentRepo.UpdateAsync(assignment, ct);
+        }
 
         return new InitializeExamDto(
             session.SessionId,
             orderedQuestions[0].QuestionId,
-            timeRemaining,
+            session.ComputeTimeRemainingSec(test.DurationMinutes, DateTime.UtcNow),
             orderedQuestions.Count);
     }
 }

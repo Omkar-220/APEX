@@ -1,122 +1,237 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle,
-  Video,
-  Mic,
-  StickyNote,
-  Pencil,
-  Eraser,
-  Flag,
+  Check, ChevronLeft, ChevronRight, AlertCircle,
+  StickyNote, Pencil, Eraser, Flag, Loader2,
 } from 'lucide-react';
-import { mockExamTests, mockExamQuestionBatches } from '../data/mockData';
 import { toast } from 'sonner';
+import {
+  initializeExam, getQuestion, getQuestionByPosition, submitAnswer,
+  finalizeExam, QuestionDisplayDto,
+} from '../services/apiService';
+import { setSessionId } from '../services/api';
+import { useExamPoll } from '../hooks/useExamPoll';
 
 const TestInterface: React.FC = () => {
   const { testId } = useParams();
+  const [searchParams] = useSearchParams();
+  const assignmentId = searchParams.get('assignmentId') ?? '';
   const navigate = useNavigate();
+
+  // ── Exam state ──────────────────────────────────────────────────────────────
   const [showGuidelines, setShowGuidelines] = useState(true);
+  const [initializing, setInitializing] = useState(false);
+  const [sessionId, setLocalSessionId] = useState<string | null>(null);
+  const [totalQuestions, setTotalQuestions] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionDisplayDto | null>(null);
+  const [questionLoading, setQuestionLoading] = useState(false);
+  const [answers, setAnswers] = useState<Record<number, string>>({}); // position -> selectedOption
+  const [questionIds, setQuestionIds] = useState<Record<number, string>>({}); // position -> questionId
+  const [idempotencyKeys, setIdempotencyKeys] = useState<Record<string, string>>({}); // questionId -> key
   const [markedForReview, setMarkedForReview] = useState<Set<number>>(new Set());
-  const [timeRemaining, setTimeRemaining] = useState(3600);
+
+  // ── Lockdown state ──────────────────────────────────────────────────────────
+  const [focusWarnings, setFocusWarnings] = useState(0);
+  const [showReturnOverlay, setShowReturnOverlay] = useState(false);
+  const focusWarningsRef = useRef(0);
+  const returnOverlayRef = useRef(false);
+  const isSubmittingRef = useRef(false);
+
+  // ── Notes / drawing ─────────────────────────────────────────────────────────
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [drawColor, setDrawColor] = useState('#000000');
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
-  const [focusWarnings, setFocusWarnings] = useState(0);
-  const focusWarningsRef = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isSubmittingRef = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const test = mockExamTests.find((t) => t.id === testId);
-  const questionBatch = mockExamQuestionBatches.find((qb) => qb.id === test?.questionBatchId);
-  const questions = questionBatch?.questions || [];
+  // ── Polling ─────────────────────────────────────────────────────────────────
+  const { status } = useExamPoll({
+    sessionId: sessionId ?? '',
+    enabled: !!sessionId && !showGuidelines,
+  });
 
-  useEffect(() => {
-    if (!showGuidelines && test) {
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            handleSubmit();
-            return 0;
-          }
-          if (prev === 300) {
-            toast.warning('5 minutes remaining!');
-          }
-          if (prev === 60) {
-            toast.error('1 minute remaining!');
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
+  // Sync answered count from poll
+  const answeredCount = status?.answeredCount ?? Object.keys(answers).length;
+
+  // ── Initialize exam ─────────────────────────────────────────────────────────
+  const handleStartTest = async () => {
+    if (!testId || !assignmentId) {
+      toast.error('Missing test or assignment ID.');
+      return;
     }
-  }, [showGuidelines, test]);
+    setInitializing(true);
+    try {
+      const result = await initializeExam(testId, assignmentId);
+      if (!result?.sessionId || !result?.firstQuestionId) {
+        toast.error('Failed to start exam: invalid server response.');
+        return;
+      }
+      setLocalSessionId(result.sessionId);
+      setSessionId(result.sessionId);
+      setTotalQuestions(result.totalQuestions);
+      setShowGuidelines(false);
+      await loadQuestion(result.sessionId, result.firstQuestionId, 0);
+      document.documentElement.requestFullscreen().catch(() => {});
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message ?? 'Failed to start exam.';
+      const code = err?.response?.data?.error?.code;
+      if (code === 'MAX_ATTEMPTS_EXCEEDED') {
+        toast.error('You have used all attempts for this test.');
+      } else if (code === 'INVALID_TIME_WINDOW') {
+        toast.error('This test is not available right now.');
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setInitializing(false);
+    }
+  };
 
-  // Warn on focus loss (covers split-screen, alt-tab, other apps)
+  // ── Load question ───────────────────────────────────────────────────────────
+  const loadQuestion = useCallback(async (sid: string, questionId: string, position: number) => {
+    setQuestionLoading(true);
+    try {
+      const q = await getQuestion(sid, questionId);
+      setCurrentQuestion(q);
+      setCurrentQuestionIndex(position);
+      setQuestionIds((prev) => ({ ...prev, [position]: questionId }));
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.error?.message ?? err?.message ?? 'Unknown error';
+      toast.error(`Failed to load question. [${status}] ${msg}`);
+      console.error('loadQuestion failed', { sid, questionId, status, msg, err });
+    } finally {
+      setQuestionLoading(false);
+    }
+  }, []);
+
+  // Navigate to question by position
+  const navigateToQuestion = useCallback(async (position: number) => {
+    if (!sessionId || position < 0 || position >= totalQuestions) return;
+    setQuestionLoading(true);
+    try {
+      const knownId = questionIds[position];
+      let q: QuestionDisplayDto;
+      if (knownId) {
+        q = await getQuestion(sessionId, knownId);
+      } else {
+        // Fetch by position — works for any question regardless of visit history
+        q = await getQuestionByPosition(sessionId, position + 1); // 1-indexed on backend
+      }
+      setCurrentQuestion(q);
+      setCurrentQuestionIndex(position);
+      setQuestionIds(prev => ({ ...prev, [position]: q.id }));
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.error?.message ?? err?.message ?? 'Unknown error';
+      toast.error(`Failed to load question. [${status}] ${msg}`);
+      console.error('navigateToQuestion failed', { position, status, msg, err });
+    } finally {
+      setQuestionLoading(false);
+    }
+  }, [sessionId, questionIds, totalQuestions]);
+
+  // ── Submit answer ───────────────────────────────────────────────────────────
+  const handleAnswerSelect = async (option: string) => {
+    if (!sessionId || !currentQuestion) return;
+
+    const questionId = currentQuestion.id;
+    const position = currentQuestionIndex;
+
+    // Generate or reuse idempotency key
+    let key = idempotencyKeys[`${questionId}:${option}`];
+    if (!key) {
+      key = crypto.randomUUID();
+      setIdempotencyKeys((prev) => ({ ...prev, [`${questionId}:${option}`]: key }));
+    }
+
+    setAnswers((prev) => ({ ...prev, [position]: option }));
+
+    try {
+      await submitAnswer(sessionId, questionId, option, key);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const body = err?.response?.data;
+      console.error('submitAnswer failed', { status, body, sessionId, questionId, option, key });
+      if (status !== 409) {
+        toast.error(`Failed to save answer. [${status}] ${body?.error?.message ?? 'Unknown error'}`);
+      }
+    }
+  };
+
+  // ── Finalize ────────────────────────────────────────────────────────────────
+  const handleSubmit = useCallback(async () => {
+    if (!sessionId || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+
+    if (document.fullscreenElement) document.exitFullscreen();
+
+    try {
+      await finalizeExam(sessionId);
+      toast.success('Test submitted successfully!');
+      setTimeout(() => navigate(`/test-complete/${sessionId}`), 1000);
+    } catch {
+      toast.error('Failed to submit. Please try again.');
+      isSubmittingRef.current = false;
+    }
+  }, [sessionId, navigate]);
+
+  // ── Lockdown ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (showGuidelines) return;
 
-    const handleFocusLoss = () => {
+    const handleViolation = (reason: string) => {
       if (isSubmittingRef.current) return;
       focusWarningsRef.current += 1;
-      const remaining = 3 - focusWarningsRef.current;
-      setFocusWarnings(focusWarningsRef.current);
+      const count = focusWarningsRef.current;
+      setFocusWarnings(count);
 
-      if (focusWarningsRef.current >= 3) {
-        toast.error('Test auto-submitted: focus left the exam 3 times.');
+      if (count >= 3) {
+        toast.error('Test auto-submitted: too many violations.');
         setTimeout(handleSubmit, 1500);
+        return;
+      }
+      toast.warning(`Warning ${count}/3: ${reason}. ${3 - count} warning(s) left.`, { duration: 5000 });
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !isSubmittingRef.current) {
+        returnOverlayRef.current = true;
+        setShowReturnOverlay(true);
+        handleViolation('Fullscreen was exited');
       } else {
-        toast.warning(
-          `Warning ${focusWarningsRef.current}/3: Stay in the exam window. ${remaining} warning${remaining === 1 ? '' : 's'} left before auto-submit.`,
-          { duration: 5000 }
-        );
+        returnOverlayRef.current = false;
+        setShowReturnOverlay(false);
       }
     };
 
-    // visibilitychange catches tab switch
-    const handleVisibilityChange = () => {
-      if (document.hidden) handleFocusLoss();
-    };
+    const handleVisibilityChange = () => { if (document.hidden) handleViolation('Tab was switched'); };
+    const handleBlur = () => { if (!returnOverlayRef.current) handleViolation('Window lost focus'); };
 
-    // window blur catches split-screen / other app focus
-    window.addEventListener('blur', handleFocusLoss);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Re-enter fullscreen if user exits it
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) handleFocusLoss();
-    };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
 
     return () => {
-      window.removeEventListener('blur', handleFocusLoss);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
     };
-  }, [showGuidelines]);
+  }, [showGuidelines, handleSubmit]);
 
-  // Canvas drawing
+  // ── Canvas drawing ──────────────────────────────────────────────────────────
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     setDrawing(true);
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
     ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : drawColor;
     ctx.lineWidth = tool === 'eraser' ? 20 : 2;
     ctx.lineCap = 'round';
@@ -128,62 +243,9 @@ const TestInterface: React.FC = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    ctx.lineTo(x, y);
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
     ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setDrawing(false);
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const handleStartTest = () => {
-    setShowGuidelines(false);
-    // Request fullscreen on test start
-    const el = document.documentElement;
-    if (el.requestFullscreen) el.requestFullscreen();
-  };
-
-  const handleAnswerSelect = (optionIndex: number) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: optionIndex,
-    }));
-  };
-
-  const handleMarkForReview = () => {
-    setMarkedForReview((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(currentQuestionIndex)) {
-        newSet.delete(currentQuestionIndex);
-        toast.info('Removed from review queue');
-      } else {
-        newSet.add(currentQuestionIndex);
-        toast.info('Marked for review');
-      }
-      return newSet;
-    });
-  };
-
-  const handleSubmit = () => {
-    isSubmittingRef.current = true;
-    if (document.fullscreenElement) document.exitFullscreen();
-    toast.success('Test submitted successfully!');
-    setTimeout(() => {
-      navigate(`/test-complete/${testId}`);
-    }, 1500);
   };
 
   const formatTime = (seconds: number) => {
@@ -194,10 +256,11 @@ const TestInterface: React.FC = () => {
 
   const getQuestionStatus = (idx: number) => {
     if (markedForReview.has(idx)) return 'review';
-    if (answers[idx] !== undefined) return 'answered';
+    if (answers[idx]) return 'answered';
     return 'unanswered';
   };
 
+  // ── Guidelines screen ───────────────────────────────────────────────────────
   if (showGuidelines) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -206,314 +269,254 @@ const TestInterface: React.FC = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
               <AlertCircle className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl mb-2 text-gray-900 dark:text-white">Test Guidelines</h2>
-            <p className="text-gray-600 dark:text-gray-400">{test?.title}</p>
+            <h2 className="text-2xl mb-2 text-gray-900">Test Guidelines</h2>
           </div>
 
           <div className="space-y-4 mb-8">
-            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 text-sm">
-                1
+            {[
+              { n: 1, title: 'Fullscreen Mode', desc: 'The test runs in fullscreen. Exiting triggers a warning. 3 warnings = auto-submit.' },
+              { n: 2, title: 'Tab Switching', desc: 'Switching tabs or windows counts as a violation.' },
+              { n: 3, title: 'Notes & Drawing', desc: 'Use the notes panel to type or draw rough work.' },
+              { n: 4, title: 'Mark for Review', desc: 'Flag questions to revisit before submitting.' },
+            ].map(({ n, title, desc }) => (
+              <div key={n} className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
+                <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 text-sm">{n}</div>
+                <div>
+                  <h3 className="text-gray-900 mb-1">{title}</h3>
+                  <p className="text-sm text-gray-600">{desc}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-gray-900 dark:text-white mb-1">Fullscreen Mode</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  The test will run in fullscreen. Exiting or switching tabs will auto-submit your test.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 text-sm">
-                2
-              </div>
-              <div>
-                <h3 className="text-gray-900 dark:text-white mb-1">Notes & Drawing</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Use the notes panel to type, draw, or scribble. Your notes are saved automatically.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 text-sm">
-                3
-              </div>
-              <div>
-                <h3 className="text-gray-900 dark:text-white mb-1">Mark for Review</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Mark questions to review later using the flag button. They'll be highlighted in orange.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
 
           <button
             onClick={handleStartTest}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl transition-colors text-lg"
+            disabled={initializing}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-4 rounded-xl transition-colors text-lg flex items-center justify-center gap-2"
           >
-            I Accept - Start Test
+            {initializing ? <><Loader2 className="w-5 h-5 animate-spin" /> Starting...</> : 'I Accept — Start Test'}
           </button>
         </div>
       </div>
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
-
+  // ── Exam screen ─────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="h-screen bg-gray-900 flex flex-col overflow-hidden select-none">
-      {/* Top Bar */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-        <div className="text-white">
-          <h2 className="text-lg">{test?.title}</h2>
-        </div>
-        {focusWarnings > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-orange-500/20 border border-orange-500/40">
-            <AlertCircle className="w-4 h-4 text-orange-400" />
-            <span className="text-orange-300 text-sm">{focusWarnings}/3 warnings</span>
-          </div>
-        )}
+    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden select-none">
 
-        <div className="flex items-center gap-6">
+      {/* Fullscreen return overlay */}
+      {showReturnOverlay && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.95)' }}>
+          <div className="text-center max-w-md px-6">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+              style={{ background: 'rgba(239,68,68,0.15)', border: '2px solid rgba(239,68,68,0.4)' }}>
+              <AlertCircle className="w-10 h-10 text-red-400" />
+            </div>
+            <h2 className="text-2xl text-white mb-3">Fullscreen Required</h2>
+            <p className="text-gray-400 mb-2">You exited fullscreen. The exam must run in fullscreen.</p>
+            <p className="text-sm text-gray-500 mb-8">
+              Warning {focusWarnings}/3 — {3 - focusWarnings} warning(s) remaining.
+            </p>
+            <button
+              onClick={() => {
+                document.documentElement.requestFullscreen().then(() => {
+                  setShowReturnOverlay(false);
+                  returnOverlayRef.current = false;
+                }).catch(() => {});
+              }}
+              className="px-8 py-4 rounded-xl text-white text-lg font-medium"
+              style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)', boxShadow: '0 0 30px rgba(27,154,170,0.4)' }}
+            >
+              Return to Fullscreen
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top bar */}
+      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+        <div className="text-white text-lg">Exam in Progress</div>
+
+        <div className="flex items-center gap-4">
+          {focusWarnings > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-orange-500/20 border border-orange-500/40">
+              <AlertCircle className="w-4 h-4 text-orange-400" />
+              <span className="text-orange-300 text-sm">{focusWarnings}/3 warnings</span>
+            </div>
+          )}
           <button
             onClick={() => setShowNotes(!showNotes)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              showNotes ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${showNotes ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
           >
-            <StickyNote className="w-5 h-5" />
-            Notes
+            <StickyNote className="w-5 h-5" /> Notes
           </button>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <Video className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <Mic className="w-5 h-5 text-gray-400" />
-            </div>
-          </div>
-
           <div
-            className={`text-2xl px-4 py-2 rounded-lg ${
-              timeRemaining < 300 ? 'bg-red-600 text-white' : 'bg-gray-700 text-white'
-            }`}
+            className={`text-2xl px-4 py-2 rounded-lg ${(status?.timeRemainingSec ?? 9999) < 300 ? 'bg-red-600 text-white' : 'bg-gray-700 text-white'}`}
           >
-            {formatTime(timeRemaining)}
+            {formatTime(status?.timeRemainingSec ?? 0)}
           </div>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Question Grid */}
+        {/* Question grid sidebar */}
         <div className="w-64 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
-          <h3 className="text-white mb-4 text-sm uppercase tracking-wide">Questions</h3>
+          <h3 className="text-white mb-4 text-sm uppercase tracking-wide">
+            Questions ({answeredCount}/{totalQuestions})
+          </h3>
           <div className="grid grid-cols-4 gap-2">
-            {questions.map((_, idx) => {
-              const status = getQuestionStatus(idx);
+            {Array.from({ length: totalQuestions }, (_, idx) => {
+              const s = getQuestionStatus(idx);
               return (
                 <button
                   key={idx}
-                  onClick={() => setCurrentQuestionIndex(idx)}
+                  onClick={() => navigateToQuestion(idx)}
                   className={`w-12 h-12 rounded-lg flex items-center justify-center text-sm transition-colors relative ${
-                    idx === currentQuestionIndex
-                      ? 'bg-blue-600 text-white'
-                      : status === 'answered'
-                        ? 'bg-green-600 text-white'
-                        : status === 'review'
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    idx === currentQuestionIndex ? 'bg-blue-600 text-white'
+                    : s === 'answered' ? 'bg-green-600 text-white'
+                    : s === 'review' ? 'bg-orange-500 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  {status === 'review' && <Flag className="w-3 h-3 absolute top-1 right-1" />}
+                  {s === 'review' && <Flag className="w-3 h-3 absolute top-1 right-1" />}
                   {idx + 1}
                 </button>
               );
             })}
           </div>
-
           <div className="mt-6 space-y-2 text-xs">
-            <div className="flex items-center gap-2 text-gray-400">
-              <div className="w-4 h-4 bg-blue-600 rounded"></div>
-              Current
-            </div>
-            <div className="flex items-center gap-2 text-gray-400">
-              <div className="w-4 h-4 bg-green-600 rounded"></div>
-              Answered
-            </div>
-            <div className="flex items-center gap-2 text-gray-400">
-              <div className="w-4 h-4 bg-orange-500 rounded relative">
-                <Flag className="w-2 h-2 absolute top-0.5 right-0.5 text-white" />
+            {[
+              { color: 'bg-blue-600', label: 'Current' },
+              { color: 'bg-green-600', label: 'Answered' },
+              { color: 'bg-orange-500', label: 'Review Later' },
+              { color: 'bg-gray-700', label: 'Not Answered' },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-2 text-gray-400">
+                <div className={`w-4 h-4 ${color} rounded`} />
+                {label}
               </div>
-              Review Later
-            </div>
-            <div className="flex items-center gap-2 text-gray-400">
-              <div className="w-4 h-4 bg-gray-700 rounded"></div>
-              Not Answered
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main content */}
         <div className="flex-1 flex overflow-hidden">
           <div className={`${showNotes ? 'w-2/3' : 'w-full'} flex flex-col bg-gray-900 transition-all`}>
             <div className="flex-1 overflow-y-auto p-8">
               <div className="max-w-4xl mx-auto">
                 <div className="text-sm text-gray-400 mb-4">
-                  Question {currentQuestionIndex + 1} of {questions.length}
+                  Question {currentQuestionIndex + 1} of {totalQuestions}
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-8 mb-6">
-                  <h3 className="text-xl text-white mb-6">{currentQuestion?.text}</h3>
-
-                  <div className="space-y-3">
-                    {currentQuestion?.options.map((option, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleAnswerSelect(idx)}
-                        className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                          answers[currentQuestionIndex] === idx
-                            ? 'border-blue-600 bg-blue-600/20 text-white'
-                            : 'border-gray-700 bg-gray-700/50 text-gray-300 hover:border-gray-600'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                              answers[currentQuestionIndex] === idx
-                                ? 'border-blue-600 bg-blue-600'
-                                : 'border-gray-600'
-                            }`}
-                          >
-                            {answers[currentQuestionIndex] === idx && <Check className="w-4 h-4 text-white" />}
-                          </div>
-                          <span>{option}</span>
-                        </div>
-                      </button>
-                    ))}
+                {questionLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
                   </div>
-                </div>
+                ) : currentQuestion ? (
+                  <div className="bg-gray-800 rounded-xl p-8 mb-6">
+                    <h3 className="text-xl text-white mb-6">{currentQuestion.content}</h3>
+                    <div className="space-y-3">
+                      {Object.entries(currentQuestion.options).map(([key, text]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleAnswerSelect(key)}
+                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                            answers[currentQuestionIndex] === key
+                              ? 'border-blue-600 bg-blue-600/20 text-white'
+                              : 'border-gray-700 bg-gray-700/50 text-gray-300 hover:border-gray-600'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              answers[currentQuestionIndex] === key ? 'border-blue-600 bg-blue-600' : 'border-gray-600'
+                            }`}>
+                              {answers[currentQuestionIndex] === key && <Check className="w-4 h-4 text-white" />}
+                            </div>
+                            <span><strong>{key}.</strong> {text}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            {/* Bottom Navigation */}
+            {/* Bottom nav */}
             <div className="bg-gray-800 border-t border-gray-700 px-8 py-4 flex items-center justify-between">
               <button
-                onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                onClick={() => navigateToQuestion(currentQuestionIndex - 1)}
                 disabled={currentQuestionIndex === 0}
-                className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gray-700 text-white hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
+                <ChevronLeft className="w-4 h-4" /> Previous
               </button>
 
               <button
-                onClick={handleMarkForReview}
+                onClick={() => {
+                  setMarkedForReview((prev) => {
+                    const s = new Set(prev);
+                    if (s.has(currentQuestionIndex)) { s.delete(currentQuestionIndex); toast.info('Removed from review'); }
+                    else { s.add(currentQuestionIndex); toast.info('Marked for review'); }
+                    return s;
+                  });
+                }}
                 className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors ${
-                  markedForReview.has(currentQuestionIndex)
-                    ? 'bg-orange-500 text-white hover:bg-orange-600'
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
+                  markedForReview.has(currentQuestionIndex) ? 'bg-orange-500 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'
                 }`}
               >
                 <Flag className="w-4 h-4" />
                 {markedForReview.has(currentQuestionIndex) ? 'Unmark' : 'Mark for Review'}
               </button>
 
-              <div className="flex items-center gap-4">
-                {currentQuestionIndex === questions.length - 1 ? (
-                  <button
-                    onClick={handleSubmit}
-                    className="px-8 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
-                  >
-                    Submit Test
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setCurrentQuestionIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                    className="flex items-center gap-2 px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                  >
-                    Save & Next
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              {currentQuestionIndex === totalQuestions - 1 ? (
+                <button onClick={handleSubmit} className="px-8 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700">
+                  Submit Test
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigateToQuestion(currentQuestionIndex + 1)}
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Save & Next <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Notes Panel */}
+          {/* Notes panel */}
           {showNotes && (
             <div className="w-1/3 bg-gray-800 border-l border-gray-700 flex flex-col">
               <div className="p-4 border-b border-gray-700">
                 <h3 className="text-white mb-4">Notes & Rough Work</h3>
                 <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setIsDrawing(false)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm ${
-                      !isDrawing ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-                    }`}
-                  >
-                    Type
-                  </button>
-                  <button
-                    onClick={() => setIsDrawing(true)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm ${
-                      isDrawing ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-                    }`}
-                  >
-                    Draw
-                  </button>
+                  {(['Type', 'Draw'] as const).map((mode) => (
+                    <button key={mode} onClick={() => setIsDrawing(mode === 'Draw')}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm ${(mode === 'Draw') === isDrawing ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
+                      {mode}
+                    </button>
+                  ))}
                 </div>
               </div>
-
               <div className="flex-1 overflow-y-auto p-4">
                 {!isDrawing ? (
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
                     placeholder="Type your notes here..."
-                    className="w-full h-full p-4 bg-gray-900 text-white rounded-lg border border-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                    className="w-full h-full p-4 bg-gray-900 text-white rounded-lg border border-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 ) : (
                   <div>
                     <div className="flex gap-2 mb-3">
-                      <button
-                        onClick={() => setTool('pen')}
-                        className={`p-2 rounded ${tool === 'pen' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setTool('eraser')}
-                        className={`p-2 rounded ${tool === 'eraser' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}
-                      >
-                        <Eraser className="w-4 h-4" />
-                      </button>
-                      <input
-                        type="color"
-                        value={drawColor}
-                        onChange={(e) => setDrawColor(e.target.value)}
-                        className="w-10 h-10 rounded cursor-pointer"
-                      />
-                      <button
-                        onClick={clearCanvas}
-                        className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                      >
-                        Clear
-                      </button>
+                      <button onClick={() => setTool('pen')} className={`p-2 rounded ${tool === 'pen' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setTool('eraser')} className={`p-2 rounded ${tool === 'eraser' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'}`}><Eraser className="w-4 h-4" /></button>
+                      <input type="color" value={drawColor} onChange={(e) => setDrawColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer" />
+                      <button onClick={() => { const c = canvasRef.current; if (c) c.getContext('2d')?.clearRect(0, 0, c.width, c.height); }}
+                        className="px-3 py-2 bg-red-600 text-white rounded text-sm">Clear</button>
                     </div>
-                    <canvas
-                      ref={canvasRef}
-                      width={400}
-                      height={600}
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
-                      className="w-full bg-white rounded-lg cursor-crosshair"
-                    />
+                    <canvas ref={canvasRef} width={400} height={600}
+                      onMouseDown={startDrawing} onMouseMove={draw}
+                      onMouseUp={() => setDrawing(false)} onMouseLeave={() => setDrawing(false)}
+                      className="w-full bg-white rounded-lg cursor-crosshair" />
                   </div>
                 )}
               </div>

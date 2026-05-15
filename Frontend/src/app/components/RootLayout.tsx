@@ -1,9 +1,15 @@
 import React from 'react';
 import { Outlet, useRouteError } from 'react-router';
 import { AlertCircle, Home } from 'lucide-react';
+import AnimatedBackground from './AnimatedBackground';
 
 export function RootLayout() {
-  return <Outlet />;
+  return (
+    <>
+      <AnimatedBackground />
+      <Outlet />
+    </>
+  );
 }
 
 export function RootErrorBoundary() {

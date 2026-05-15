@@ -45,7 +45,7 @@ public class TestSessionConfiguration : IEntityTypeConfiguration<TestSession>
             .IsRowVersion()
             .IsRequired();
 
-        builder.HasIndex(s => new { s.AssignmentId, s.AttemptNumber }).IsUnique();
+        builder.HasIndex(s => new { s.AssignmentId, s.CandidateId, s.AttemptNumber }).IsUnique();
         builder.HasIndex(s => new { s.CandidateId, s.Status });
         builder.HasIndex(s => new { s.Status, s.StartTime });
 

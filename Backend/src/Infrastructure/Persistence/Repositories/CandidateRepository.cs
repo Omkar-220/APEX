@@ -11,13 +11,18 @@ public class CandidateRepository : ICandidateRepository
     public CandidateRepository(AppDbContext context) => _context = context;
 
     public Task<Candidate?> GetByOidAsync(string azureAdOid, CancellationToken ct = default) =>
-        _context.Candidates.FirstOrDefaultAsync(c => c.AzureAdOid == azureAdOid, ct);
+        _context.Candidates.FirstOrDefaultAsync(
+            c => c.AzureAdOidValue == azureAdOid.Trim(), ct);
+
+    public Task<Candidate?> GetByEmailAsync(string email, CancellationToken ct = default) =>
+        _context.Candidates.FirstOrDefaultAsync(
+            c => c.EmailValue == email.Trim().ToLowerInvariant(), ct);
 
     public Task<Candidate?> GetByIdAsync(Guid candidateId, CancellationToken ct = default) =>
         _context.Candidates.FindAsync([candidateId], ct).AsTask();
 
     public Task<List<Candidate>> GetAllAsync(CancellationToken ct = default) =>
-        _context.Candidates.OrderBy(c => c.DisplayName).ToListAsync(ct);
+        _context.Candidates.OrderBy(c => c.DisplayNameValue).ToListAsync(ct);
 
     public async Task AddAsync(Candidate candidate, CancellationToken ct = default)
     {
@@ -37,7 +42,7 @@ public class CandidateRepository : ICandidateRepository
             && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
         {
             _context.ChangeTracker.Clear();
-            return (await GetByOidAsync(candidate.AzureAdOid.Value, ct))!;
+            return (await GetByOidAsync(candidate.AzureAdOidValue, ct))!;
         }
     }
 

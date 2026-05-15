@@ -1,817 +1,594 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Plus,
-  Users,
-  BookOpen,
-  Calendar,
-  Clock,
-  ClipboardCheck,
-  ChevronRight,
-  Zap,
-  TrendingUp,
-  AlertCircle,
-  PlayCircle,
-  CheckCircle2,
-  Circle,
-  ArrowUpRight,
-  LayoutGrid,
+  Plus, Users, BookOpen, Calendar, Clock, ClipboardCheck,
+  ChevronRight, Zap, AlertCircle, PlayCircle, CheckCircle2,
+  Circle, ArrowUpRight, LayoutGrid, Loader2, ClipboardList, Shield, RefreshCw,
 } from 'lucide-react';
 import {
-  mockQuestionBatches,
-  mockCandidateBatches,
-  mockTestAssignments,
-  mockTestResults,
-} from '../data/mockData';
+  getQuestionBatches, getBatches, getAssignments, getCompletedSessions,
+  QuestionBatchDto, CandidateBatchDto, AdminAssignmentDto, CompletedSessionDto,
+} from '../services/apiService';
 import DashboardLayout from './DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 
-  const statusConfig = {
-    Pending: {
-      label: 'Pending',
-      color: '#8b5cf6',
-      bg: 'rgba(139,92,246,0.15)',
-      border: 'rgba(139,92,246,0.25)',
-      icon: Circle,
-    },
-    Active: {
-      label: 'Active',
-      color: '#3b82f6',
-      bg: 'rgba(59,130,246,0.15)',
-      border: 'rgba(59,130,246,0.25)',
-      icon: PlayCircle,
-    },
-    Completed: {
-      label: 'Completed',
-      color: '#10b981',
-      bg: 'rgba(16,185,129,0.15)',
-      border: 'rgba(16,185,129,0.25)',
-      icon: CheckCircle2,
-    },
-    Expired: {
-      label: 'Expired',
-      color: '#ef4444',
-      bg: 'rgba(239,68,68,0.15)',
-      border: 'rgba(239,68,68,0.25)',
-      icon: Circle,
-    },
-  };
-
-const reviewStatusConfig = {
-  pending: { label: 'Pending Review', color: '#ef4444', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.25)' },
-  'in-review': { label: 'In Review', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.25)' },
-  completed: { label: 'Reviewed', color: '#10b981', bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.25)' },
+// ── Theme tokens ──────────────────────────────────────────────────────────────
+const T = {
+  navy:   '#0F4C75',
+  teal:   '#1B9AAA',
+  gold:   '#E8B960',
+  coral:  '#E07A5F',
+  text:   '#2D3436',
+  muted:  '#636E72',
+  card:   'rgba(255,255,255,0.70)',
+  cardHover: 'rgba(255,255,255,0.88)',
+  border: 'rgba(15,76,117,0.12)',
+  shadow: '0 4px 16px rgba(15,76,117,0.08)',
+  shadowHover: '0 8px 24px rgba(15,76,117,0.14)',
 };
 
-const domainColors: Record<string, string> = {
-  'Frontend Development': '#6366f1',
-  Programming: '#f59e0b',
-  Database: '#10b981',
-  'Data Science': '#8b5cf6',
-  Architecture: '#3b82f6',
-};
+const statusConfig = {
+  Pending:   { label: 'Pending',   color: T.navy,  bg: 'rgba(15,76,117,0.12)',  border: 'rgba(15,76,117,0.2)',  Icon: Circle },
+  Active:    { label: 'Active',    color: T.teal,  bg: 'rgba(27,154,170,0.12)', border: 'rgba(27,154,170,0.2)', Icon: PlayCircle },
+  Completed: { label: 'Completed', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.2)', Icon: CheckCircle2 },
+  Expired:   { label: 'Expired',   color: T.coral, bg: 'rgba(224,122,95,0.12)', border: 'rgba(224,122,95,0.2)', Icon: Circle },
+} as const;
 
-const GlassStatCard: React.FC<{
-  icon: React.ReactNode;
-  value: string | number;
-  label: string;
-  gradient: string;
-  glow: string;
-  badge?: { text: string; color: string; bg: string };
-  onClick?: () => void;
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+const StatCard: React.FC<{
+  icon: React.ReactNode; value: string | number; label: string;
+  gradient: string; glow: string; badge?: string; onClick?: () => void;
 }> = ({ icon, value, label, gradient, glow, badge, onClick }) => (
   <div
     className="rounded-2xl p-5 relative overflow-hidden transition-all duration-200"
-    style={{
-      background: 'rgba(255,255,255,0.7)',
-      border: '1px solid rgba(15,76,117,0.12)',
-      backdropFilter: 'blur(16px)',
-      cursor: onClick ? 'pointer' : 'default',
-      boxShadow: '0 4px 16px rgba(15,76,117,0.08)',
-    }}
+    style={{ background: T.card, border: `1px solid ${T.border}`, backdropFilter: 'blur(16px)',
+      cursor: onClick ? 'pointer' : 'default', boxShadow: T.shadow }}
     onClick={onClick}
-    onMouseEnter={(e) => {
-      if (onClick) {
-        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(15,76,117,0.12)';
-      }
-    }}
-    onMouseLeave={(e) => {
-      if (onClick) {
-        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.08)';
-      }
-    }}
+    onMouseEnter={e => { if (onClick) { const el = e.currentTarget as HTMLElement; el.style.background = T.cardHover; el.style.transform = 'translateY(-2px)'; el.style.boxShadow = T.shadowHover; } }}
+    onMouseLeave={e => { if (onClick) { const el = e.currentTarget as HTMLElement; el.style.background = T.card; el.style.transform = 'translateY(0)'; el.style.boxShadow = T.shadow; } }}
   >
-    <div className="relative z-10">
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: gradient, boxShadow: `0 4px 12px ${glow}` }}
-        >
-          {icon}
-        </div>
-        {badge && (
-          <span
-            className="text-xs px-2 py-1 rounded-full"
-            style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.color}40` }}
-          >
-            {badge.text}
-          </span>
-        )}
+    <div className="flex items-start justify-between mb-3">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+        style={{ background: gradient, boxShadow: `0 4px 12px ${glow}` }}>
+        {icon}
       </div>
-      <div className="text-2xl mb-0.5" style={{ color: '#0F4C75', fontWeight: 600 }}>{value}</div>
-      <div className="text-xs" style={{ color: '#636E72' }}>{label}</div>
+      {badge && (
+        <span className="text-xs px-2 py-1 rounded-full"
+          style={{ background: 'rgba(27,154,170,0.1)', color: T.teal, border: '1px solid rgba(27,154,170,0.2)' }}>
+          {badge}
+        </span>
+      )}
     </div>
+    <div className="text-2xl mb-0.5" style={{ color: T.navy }}>{value}</div>
+    <div className="text-xs" style={{ color: T.muted }}>{label}</div>
   </div>
 );
+
+function useHover(ref: React.RefObject<HTMLElement>) {
+  const enter = () => { if (ref.current) { ref.current.style.background = T.cardHover; ref.current.style.transform = 'translateY(-1px)'; ref.current.style.boxShadow = T.shadowHover; } };
+  const leave = () => { if (ref.current) { ref.current.style.background = T.card; ref.current.style.transform = 'translateY(0)'; ref.current.style.boxShadow = T.shadow; } };
+  return { onMouseEnter: enter, onMouseLeave: leave };
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedTab, setSelectedTab] = useState<'test-status' | 'upcoming' | 'assess' | 'overview'>('test-status');
+  const [selectedTab, setSelectedTab] = useState<'assignments' | 'upcoming' | 'overview' | 'completed'>('assignments');
+
+  const [questionBatches, setQuestionBatches] = useState<QuestionBatchDto[]>([]);
+  const [candidateBatches, setCandidateBatches] = useState<CandidateBatchDto[]>([]);
+  const [assignments, setAssignments] = useState<AdminAssignmentDto[]>([]);
+  const [completedSessions, setCompletedSessions] = useState<CompletedSessionDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = async (isInitial = false) => {
+    if (isInitial) setLoading(true); else setRefreshing(true);
+    try {
+      const [qb, cb, asgn, completed] = await Promise.all([
+        getQuestionBatches(), getBatches(), getAssignments(), getCompletedSessions(),
+      ]);
+      setQuestionBatches(qb);
+      setCandidateBatches(cb);
+      setAssignments(asgn);
+      setCompletedSessions(completed);
+    } catch {
+      // silently ignore — stale data stays visible
+    } finally {
+      if (isInitial) setLoading(false); else setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(true);
+    // Auto-refresh every 30s to pick up session completions
+    const interval = setInterval(() => fetchData(false), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isSuperAdmin = user?.role === 'SuperAdmin';
-  const pendingReviews = mockTestResults.filter((r) => r.needsManualReview && r.reviewStatus === 'pending').length;
-
-  const visibleBatches = isSuperAdmin
-    ? mockCandidateBatches
-    : mockCandidateBatches.filter((b) => b.adminEmails.includes(user?.email || ''));
-
-  const upcomingTests = mockTestAssignments.filter((t) => t.status === 'Pending');
-  const inProgressTests = mockTestAssignments.filter((t) => t.status === 'Active');
+  const upcomingAssignments = assignments.filter(a => a.status === 'Pending');
+  const activeAssignments  = assignments.filter(a => a.status === 'Active');
 
   const tabs = [
-    { id: 'test-status', label: 'Assignments & Status', icon: LayoutGrid },
-    { id: 'upcoming', label: 'Upcoming Tests', icon: Clock, count: upcomingTests.length },
-    { id: 'assess', label: 'Assess Tests', icon: ClipboardCheck, count: pendingReviews, urgent: pendingReviews > 0 },
-    { id: 'overview', label: 'Batch Overview', icon: Users },
+    { id: 'assignments', label: 'Assignments & Status', icon: LayoutGrid },
+    { id: 'upcoming',    label: 'Upcoming Tests',       icon: Clock,         count: upcomingAssignments.length },
+    { id: 'completed',   label: 'Completed Tests',      icon: ClipboardList, count: completedSessions.length },
+    { id: 'overview',    label: 'Batch Overview',       icon: Users },
   ] as const;
 
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{
-                  background: isSuperAdmin
-                    ? 'linear-gradient(135deg, #f59e0b, #ef4444)'
-                    : 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                }}
-              >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: isSuperAdmin
+                  ? `linear-gradient(135deg, ${T.gold}, #d4a843)`
+                  : `linear-gradient(135deg, ${T.navy}, ${T.teal})` }}>
                 {isSuperAdmin ? '👑' : '⚙️'}
               </div>
-              <h1 style={{ fontSize: '1.4rem', color: '#0F4C75' }}>
+              <h1 style={{ fontSize: '1.4rem', color: T.navy }}>
                 {isSuperAdmin ? 'Super Admin' : 'Admin'} Dashboard
               </h1>
             </div>
-            <p className="text-xs pl-1" style={{ color: '#636E72' }}>
+            <p className="text-xs pl-1" style={{ color: T.muted }}>
               {isSuperAdmin ? 'Full platform control & oversight' : 'Manage your assigned batches & tests'}
             </p>
           </div>
-          <button
-            onClick={() => navigate('/admin/create-test')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm text-white transition-all duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              boxShadow: '0 0 20px rgba(99,102,241,0.3)',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 30px rgba(99,102,241,0.5)';
-              (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(99,102,241,0.3)';
-              (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            Assign New Test
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fetchData(false)}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200"
+              style={{ background: 'rgba(255,255,255,0.7)', border: `1px solid ${T.border}`,
+                color: refreshing ? T.muted : T.navy, cursor: refreshing ? 'not-allowed' : 'pointer' }}
+              title="Refresh dashboard data">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              onClick={() => navigate('/admin/create-test')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm text-white transition-all duration-200"
+              style={{ background: `linear-gradient(135deg, ${T.navy}, ${T.teal})`,
+                boxShadow: '0 0 20px rgba(27,154,170,0.3)', whiteSpace: 'nowrap' }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 0 30px rgba(27,154,170,0.5)'; el.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 0 20px rgba(27,154,170,0.3)'; el.style.transform = 'translateY(0)'; }}
+            >
+              <Plus className="w-4 h-4" /> Assign New Test
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <GlassStatCard
-            icon={<BookOpen className="w-5 h-5 text-white" />}
-            value={mockQuestionBatches.length}
-            label="Question Banks"
-            gradient="linear-gradient(135deg, #6366f1, #4f46e5)"
-            glow="rgba(99,102,241,0.5)"
-            onClick={() => navigate('/admin/questions')}
-          />
-          <GlassStatCard
-            icon={<Users className="w-5 h-5 text-white" />}
-            value={visibleBatches.length}
-            label="Candidate Batches"
-            gradient="linear-gradient(135deg, #10b981, #059669)"
-            glow="rgba(16,185,129,0.5)"
-            onClick={() => navigate('/admin/batches')}
-          />
-          <GlassStatCard
-            icon={<Clock className="w-5 h-5 text-white" />}
-            value={upcomingTests.length}
-            label="Upcoming Tests"
-            gradient="linear-gradient(135deg, #8b5cf6, #7c3aed)"
-            glow="rgba(139,92,246,0.5)"
-            badge={
-              inProgressTests.length > 0
-                ? { text: `${inProgressTests.length} live`, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' }
-                : undefined
-            }
-            onClick={() => setSelectedTab('upcoming')}
-          />
-          <GlassStatCard
-            icon={<ClipboardCheck className="w-5 h-5 text-white" />}
-            value={pendingReviews}
-            label="Pending Reviews"
-            gradient="linear-gradient(135deg, #ef4444, #dc2626)"
-            glow="rgba(239,68,68,0.5)"
-            badge={
-              pendingReviews > 0
-                ? { text: 'Needs attention', color: '#f87171', bg: 'rgba(239,68,68,0.15)' }
-                : undefined
-            }
-            onClick={() => setSelectedTab('assess')}
-          />
-        </div>
-
-        {/* Tabs */}
-        <div
-          className="flex gap-1 mb-6 p-1 rounded-xl overflow-x-auto"
-          style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(15,76,117,0.12)', width: 'fit-content', boxShadow: '0 2px 8px rgba(15,76,117,0.06)' }}
-        >
-          {tabs.map((tab) => {
-            const active = selectedTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedTab(tab.id)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-200"
-                style={{
-                  background: active ? 'rgba(15,76,117,0.12)' : 'transparent',
-                  color: active ? '#0F4C75' : '#636E72',
-                  border: active ? '1px solid rgba(15,76,117,0.2)' : '1px solid transparent',
-                }}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-                {'count' in tab && tab.count !== undefined && tab.count > 0 && (
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full"
-                    style={{
-                      background: 'urgent' in tab && tab.urgent
-                        ? 'rgba(239,68,68,0.15)'
-                        : active
-                        ? 'rgba(15,76,117,0.15)'
-                        : 'rgba(15,76,117,0.08)',
-                      color: 'urgent' in tab && tab.urgent ? '#ef4444' : active ? '#0F4C75' : '#636E72',
-                    }}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* TEST ASSIGNMENTS & STATUS */}
-        {selectedTab === 'test-status' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-4">
-              <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>All Test Assignments</h2>
-              <span className="text-xs" style={{ color: '#636E72' }}>
-                {mockTestAssignments.length} total
-              </span>
-            </div>
-
-            {mockTestAssignments.map((assignment) => {
-              const sc = statusConfig[assignment.status];
-              const domainColor = assignment.domain ? domainColors[assignment.domain] || '#6366f1' : '#6366f1';
-              const progress = (assignment.completedCount / assignment.totalCandidates) * 100;
-
-              return (
-                <div
-                  key={assignment.id}
-                  onClick={() => navigate(`/admin/test-status/${assignment.testId}`)}
-                  className="rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-200"
-                  style={{
-                    background: 'rgba(255,255,255,0.7)',
-                    border: '1px solid rgba(15,76,117,0.12)',
-                    backdropFilter: 'blur(12px)',
-                    boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,76,117,0.06)';
-                  }}
-                >
-                  {/* Left accent */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-                    style={{ background: domainColor }}
-                  />
-
-                  <div className="pl-3">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{assignment.testTitle}</h3>
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
-                            style={{
-                              background: sc.bg,
-                              color: sc.color,
-                              border: `1px solid ${sc.border}`,
-                            }}
-                          >
-                            <sc.icon className="w-3 h-3" />
-                            {sc.label}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-3">
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Batch</div>
-                            <div style={{ color: '#2D3436' }}>{assignment.batchName}</div>
-                          </div>
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Scheduled</div>
-                            <div style={{ color: '#2D3436' }}>
-                              {new Date(assignment.scheduledStart).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Progress</div>
-                            <div style={{ color: '#2D3436' }}>
-                              {assignment.completedCount}/{assignment.totalCandidates} candidates
-                            </div>
-                          </div>
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Avg Score</div>
-                            <div
-                              style={{
-                                color: assignment.averageScore
-                                  ? assignment.averageScore >= 80
-                                    ? '#10b981'
-                                    : '#f59e0b'
-                                  : '#636E72',
-                              }}
-                            >
-                              {assignment.averageScore ? `${assignment.averageScore}%` : '—'}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Progress bar */}
-                        <div className="h-1.5 rounded-full" style={{ background: 'rgba(15,76,117,0.12)' }}>
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{
-                              width: `${progress}%`,
-                              background:
-                                assignment.status === 'completed'
-                                  ? '#10b981'
-                                  : assignment.status === 'in-progress'
-                                  ? '#3b82f6'
-                                  : '#8b5cf6',
-                              boxShadow:
-                                assignment.status === 'in-progress' ? '0 0 8px rgba(59,130,246,0.5)' : 'none',
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <ArrowUpRight
-                        className="w-4 h-4 flex-shrink-0 mt-1"
-                        style={{ color: '#636E72' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: T.teal }} />
           </div>
-        )}
-
-        {/* UPCOMING TESTS */}
-        {selectedTab === 'upcoming' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-4">
-              <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Scheduled Tests</h2>
-              <span className="text-xs" style={{ color: '#636E72' }}>
-                {upcomingTests.length} upcoming
-              </span>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <StatCard icon={<BookOpen className="w-5 h-5 text-white" />}
+                value={questionBatches.length} label="Question Banks"
+                gradient={`linear-gradient(135deg, ${T.navy}, ${T.teal})`} glow="rgba(27,154,170,0.4)"
+                onClick={() => navigate('/admin/questions')} />
+              <StatCard icon={<Users className="w-5 h-5 text-white" />}
+                value={candidateBatches.length} label="Candidate Batches"
+                gradient={`linear-gradient(135deg, ${T.teal}, #0e7a87)`} glow="rgba(27,154,170,0.4)"
+                onClick={() => navigate('/admin/batches')} />
+              <StatCard icon={<Clock className="w-5 h-5 text-white" />}
+                value={upcomingAssignments.length} label="Upcoming Tests"
+                gradient={`linear-gradient(135deg, ${T.navy}, #0a3a5c)`} glow="rgba(15,76,117,0.4)"
+                badge={activeAssignments.length > 0 ? `${activeAssignments.length} live` : undefined}
+                onClick={() => setSelectedTab('upcoming')} />
+              <StatCard icon={<ClipboardCheck className="w-5 h-5 text-white" />}
+                value={assignments.length} label="Total Assignments"
+                gradient={`linear-gradient(135deg, ${T.gold}, #d4a843)`} glow="rgba(232,185,96,0.4)"
+                onClick={() => setSelectedTab('assignments')} />
             </div>
 
-            {upcomingTests.map((test) => {
-              const domainColor = test.domain ? domainColors[test.domain] || '#6366f1' : '#6366f1';
-              const scheduledDate = new Date(test.scheduledStart);
-              const daysUntil = Math.ceil((scheduledDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
-              return (
-                <div
-                  key={test.id}
-                  className="rounded-2xl p-5 relative overflow-hidden transition-all duration-200"
-                  style={{
-                    background: 'rgba(255,255,255,0.7)',
-                    border: '1px solid rgba(15,76,117,0.12)',
-                    backdropFilter: 'blur(12px)',
-                    boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
-                  }}
-                >
-                  {/* Left accent */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-                    style={{ background: domainColor }}
-                  />
-
-                  <div className="pl-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-3">
-                        <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{test.testTitle}</h3>
-                        {daysUntil <= 3 && (
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
-                            style={{
-                              background: 'rgba(239,68,68,0.15)',
-                              color: '#f87171',
-                              border: '1px solid rgba(239,68,68,0.3)',
-                            }}
-                          >
-                            <Zap className="w-3 h-3" />
-                            Soon
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div>
-                          <div className="mb-0.5" style={{ color: '#636E72' }}>Batch</div>
-                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
-                            <Users className="w-3 h-3" />
-                            {test.batchName}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="mb-0.5" style={{ color: '#636E72' }}>Date & Time</div>
-                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
-                            <Calendar className="w-3 h-3" />
-                            {scheduledDate.toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="mb-0.5" style={{ color: '#636E72' }}>Duration</div>
-                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
-                            <Clock className="w-3 h-3" />
-                            {test.duration} min
-                          </div>
-                        </div>
-                        <div>
-                          <div className="mb-0.5" style={{ color: '#636E72' }}>Candidates</div>
-                          <div className="flex items-center gap-1" style={{ color: '#2D3436' }}>
-                            <Users className="w-3 h-3" />
-                            {test.totalCandidates}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* Days countdown */}
-                      <div
-                        className="text-center px-3 py-2 rounded-xl"
-                        style={{
-                          background: 'rgba(139,92,246,0.12)',
-                          border: '1px solid rgba(139,92,246,0.2)',
-                        }}
-                      >
-                        <div className="text-xl leading-none" style={{ color: '#0F4C75', fontWeight: 600 }}>{daysUntil}</div>
-                        <div className="text-xs mt-0.5" style={{ color: '#636E72' }}>
-                          days
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => navigate(`/admin/upcoming-test/${test.testId}`)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm text-white transition-all duration-200"
-                        style={{
-                          background: 'rgba(99,102,241,0.2)',
-                          border: '1px solid rgba(99,102,241,0.3)',
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.35)';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.2)';
-                        }}
-                      >
-                        Manage
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ASSESS TESTS */}
-        {selectedTab === 'assess' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-4">
-              <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Tests Requiring Manual Review</h2>
-              {pendingReviews > 0 && (
-                <span
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
-                  style={{
-                    background: 'rgba(239,68,68,0.15)',
-                    color: '#f87171',
-                    border: '1px solid rgba(239,68,68,0.25)',
-                  }}
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {pendingReviews} need review
-                </span>
-              )}
-            </div>
-
-            {mockTestResults
-              .filter((r) => r.needsManualReview)
-              .map((result) => {
-                const rs = reviewStatusConfig[result.reviewStatus];
+            {/* Tabs */}
+            <div className="flex gap-1 mb-6 p-1 rounded-xl overflow-x-auto w-fit"
+              style={{ background: 'rgba(255,255,255,0.6)', border: `1px solid ${T.border}`,
+                boxShadow: '0 2px 8px rgba(15,76,117,0.06)' }}>
+              {tabs.map(tab => {
+                const active = selectedTab === tab.id;
                 return (
-                  <div
-                    key={`${result.testId}-${result.candidateId}`}
-                    onClick={() => navigate(`/admin/assess/${result.testId}/${result.candidateId}`)}
-                    className="rounded-2xl p-5 cursor-pointer transition-all duration-200"
-                    style={{
-                      background: 'rgba(255,255,255,0.7)',
-                      border: '1px solid rgba(15,76,117,0.12)',
-                      boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,76,117,0.06)';
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>React Fundamentals Assessment</h3>
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full"
-                            style={{
-                              background: rs.bg,
-                              color: rs.color,
-                              border: `1px solid ${rs.border}`,
-                            }}
-                          >
-                            {rs.label}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 text-xs">
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Candidate</div>
-                            <div style={{ color: '#2D3436' }}>
-                              {result.candidateId === 'c1' ? 'Sarah Chen' : 'Michael Brown'}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Batch</div>
-                            <div style={{ color: '#2D3436' }}>Frontend Team Q2 2026</div>
-                          </div>
-                          <div>
-                            <div className="mb-0.5" style={{ color: '#636E72' }}>Submitted</div>
-                            <div style={{ color: '#2D3436' }}>
-                              {new Date(result.completedAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <ArrowUpRight className="w-4 h-4 ml-4 flex-shrink-0" style={{ color: '#636E72' }} />
-                    </div>
-                  </div>
+                  <button key={tab.id} onClick={() => setSelectedTab(tab.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-200"
+                    style={{ background: active ? 'rgba(15,76,117,0.12)' : 'transparent',
+                      color: active ? T.navy : T.muted,
+                      border: active ? `1px solid rgba(15,76,117,0.2)` : '1px solid transparent' }}>
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                    {'count' in tab && (tab as any).count > 0 && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full"
+                        style={{ background: active ? 'rgba(15,76,117,0.15)' : 'rgba(15,76,117,0.08)',
+                          color: active ? T.navy : T.muted }}>
+                        {(tab as any).count}
+                      </span>
+                    )}
+                  </button>
                 );
               })}
-          </div>
-        )}
+            </div>
 
-        {/* BATCH OVERVIEW */}
-        {selectedTab === 'overview' && (
-          <div className="space-y-8">
-            {/* Question Banks */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Question Banks</h2>
-                <button
-                  onClick={() => navigate('/admin/questions/create')}
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-all duration-200"
-                  style={{
-                    background: 'rgba(99,102,241,0.15)',
-                    color: '#a5b4fc',
-                    border: '1px solid rgba(99,102,241,0.25)',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.15)';
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Create New
-                </button>
-              </div>
+            {/* ── ASSIGNMENTS & STATUS ── */}
+            {selectedTab === 'assignments' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 style={{ color: T.navy, fontSize: '1.1rem' }}>All Test Assignments</h2>
+                  <span className="text-xs" style={{ color: T.muted }}>{assignments.length} total</span>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {mockQuestionBatches.map((batch) => {
-                  const diffColors = {
-                    easy: '#10b981',
-                    medium: '#f59e0b',
-                    hard: '#ef4444',
-                  };
-                  const color = diffColors[batch.difficulty];
-
+                {assignments.length === 0 ? (
+                  <EmptyState message="No assignments yet" />
+                ) : assignments.map(a => {
+                  const sc = statusConfig[a.status as keyof typeof statusConfig] ?? statusConfig.Pending;
                   return (
-                    <div
-                      key={batch.id}
-                      onClick={() => navigate(`/admin/questions/${batch.id}`)}
-                      className="rounded-2xl p-5 cursor-pointer transition-all duration-200"
-                      style={{
-                        background: 'rgba(255,255,255,0.7)',
-                        border: '1px solid rgba(15,76,117,0.12)',
-                        boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.85)';
-                        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-                        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(15,76,117,0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)';
-                        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,76,117,0.06)';
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center"
-                          style={{ background: `${color}20`, border: `1px solid ${color}40` }}
-                        >
-                          <BookOpen className="w-4 h-4" style={{ color }} />
-                        </div>
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full capitalize"
-                          style={{
-                            background: `${color}15`,
-                            color,
-                            border: `1px solid ${color}30`,
-                          }}
-                        >
-                          {batch.difficulty}
-                        </span>
-                      </div>
-
-                      <h3 className="text-sm mb-1" style={{ color: '#0F4C75', fontWeight: 600 }}>{batch.name}</h3>
-                      <p className="text-xs mb-3" style={{ color: '#636E72' }}>
-                        {batch.domain} · {batch.topic}
-                      </p>
-
-                      <div className="flex items-center justify-between text-xs" style={{ color: '#636E72' }}>
-                        <span>{batch.questionCount} questions</span>
-                        <span>Last used {new Date(batch.lastUsed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                      </div>
-                    </div>
+                    <AssignmentRow key={a.assignmentId} assignment={a} sc={sc}
+                      onClick={() => navigate(`/admin/test-status/${a.testId}`)} />
                   );
                 })}
               </div>
-            </div>
+            )}
 
-            {/* Candidate Batches */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: '#0F4C75', fontSize: '1.1rem', fontWeight: 600 }}>Candidate Batches</h2>
-                <button
-                  onClick={() => navigate('/admin/batch/new')}
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-all duration-200"
-                  style={{
-                    background: 'rgba(16,185,129,0.15)',
-                    color: '#6ee7b7',
-                    border: '1px solid rgba(16,185,129,0.25)',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.15)';
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Create New
-                </button>
-              </div>
-
+            {/* ── UPCOMING TESTS ── */}
+            {selectedTab === 'upcoming' && (
               <div className="space-y-3">
-                {visibleBatches.map((batch) => (
-                  <div
-                    key={batch.id}
-                    className="rounded-2xl p-5 transition-all duration-200"
-                    style={{
-                      background: 'rgba(255,255,255,0.7)',
-                      border: '1px solid rgba(15,76,117,0.12)',
-                      boxShadow: '0 2px 12px rgba(15,76,117,0.06)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-sm" style={{ color: '#0F4C75', fontWeight: 600 }}>{batch.name}</h3>
-                          {batch.adminEmails.includes(user?.email || '') && (
-                            <span
-                              className="text-xs px-2 py-0.5 rounded-full"
-                              style={{
-                                background: 'rgba(15,76,117,0.1)',
-                                color: '#0F4C75',
-                                border: '1px solid rgba(15,76,117,0.2)',
-                              }}
-                            >
-                              Admin
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-5 text-xs" style={{ color: '#636E72' }}>
-                          <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {batch.candidateCount} candidates
-                          </span>
-                          <span>Created {new Date(batch.createdAt).toLocaleDateString()}</span>
-                          <span>{batch.adminEmails.length} admin(s)</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => navigate(`/admin/batch/${batch.id}`)}
-                        className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl transition-all duration-200"
-                        style={{
-                          background: 'rgba(99,102,241,0.15)',
-                          color: '#a5b4fc',
-                          border: '1px solid rgba(99,102,241,0.25)',
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.25)';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.15)';
-                        }}
-                      >
-                        Manage
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 style={{ color: T.navy, fontSize: '1.1rem' }}>Scheduled Tests</h2>
+                  <span className="text-xs" style={{ color: T.muted }}>{upcomingAssignments.length} upcoming</span>
+                </div>
+
+                {upcomingAssignments.length === 0 ? (
+                  <EmptyState message="No upcoming tests" />
+                ) : upcomingAssignments.map(a => (
+                  <UpcomingRow key={a.assignmentId} assignment={a}
+                    onClick={() => navigate(`/admin/upcoming-test/${a.testId}`)} />
                 ))}
               </div>
-            </div>
-          </div>
+            )}
+
+            {/* ── COMPLETED TESTS ── */}
+            {selectedTab === 'completed' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 style={{ color: T.navy, fontSize: '1.1rem' }}>Completed Test Sessions</h2>
+                  <span className="text-xs" style={{ color: T.muted }}>{completedSessions.length} total</span>
+                </div>
+
+                {completedSessions.length === 0 ? (
+                  <EmptyState message="No completed sessions yet" />
+                ) : (
+                  <div className="space-y-6">
+                    {Object.entries(
+                      completedSessions.reduce<Record<string, CompletedSessionDto[]>>((acc, s) => {
+                        const key = `${s.testId}::${s.testTitle}`;
+                        (acc[key] ??= []).push(s);
+                        return acc;
+                      }, {})
+                    ).map(([key, testSessions]) => {
+                      const testTitle = key.split('::')[1];
+                      const avgPct = Math.round(testSessions.reduce((a, s) => a + Number(s.percentage), 0) / testSessions.length);
+                      const passCount = testSessions.filter(s => s.passed).length;
+                      const batchName = testSessions[0].batchName;
+
+                      return (
+                        <div key={key}>
+                          {/* Test group header */}
+                          <div className="rounded-2xl p-5 mb-3" style={cardStyle}>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div>
+                                <h3 className="text-base mb-1" style={{ color: T.navy }}>{testTitle}</h3>
+                                <div className="flex items-center gap-4 text-xs" style={{ color: T.muted }}>
+                                  {batchName && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{batchName}</span>}
+                                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{testSessions.length} candidates</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className="text-center">
+                                  <div className="text-lg" style={{ color: T.navy }}>{avgPct}%</div>
+                                  <div className="text-xs" style={{ color: T.muted }}>Avg score</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-lg" style={{ color: '#22c55e' }}>{passCount}/{testSessions.length}</div>
+                                  <div className="text-xs" style={{ color: T.muted }}>Passed</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Candidate rows */}
+                          <div className="space-y-2">
+                            {testSessions.map(s => {
+                              const pct = Number(s.percentage);
+                              const scoreColor = pct >= 80 ? '#22c55e' : pct >= 60 ? T.gold : T.coral;
+                              return (
+                                <div key={s.sessionId}
+                                  onClick={() => navigate(`/admin/scorecard/${s.sessionId}`)}
+                                  className="rounded-2xl px-5 py-4 cursor-pointer transition-all duration-200"
+                                  style={{ background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(15,76,117,0.1)', backdropFilter: 'blur(12px)' }}
+                                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(255,255,255,0.9)'; el.style.transform = 'translateX(4px)'; }}
+                                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(255,255,255,0.65)'; el.style.transform = 'translateX(0)'; }}>
+                                  <div className="flex items-center gap-4">
+                                    {/* Avatar */}
+                                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm text-white flex-shrink-0"
+                                      style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}>
+                                      {s.candidateDisplayName.charAt(0).toUpperCase()}
+                                    </div>
+
+                                    {/* Name + email */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm" style={{ color: T.navy }}>{s.candidateDisplayName}</div>
+                                      <div className="text-xs truncate" style={{ color: T.muted }}>{s.candidateEmail}</div>
+                                    </div>
+
+                                    {/* Score */}
+                                    <div className="text-right flex-shrink-0">
+                                      <div className="text-lg" style={{ color: scoreColor }}>{pct}%</div>
+                                      <div className="text-xs" style={{ color: T.muted }}>{s.score}/{s.totalQuestions}</div>
+                                    </div>
+
+                                    {/* Pass/Fail */}
+                                    <span className="text-xs px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
+                                      style={{
+                                        background: s.passed ? 'rgba(34,197,94,0.1)' : 'rgba(224,122,95,0.1)',
+                                        color: s.passed ? '#22c55e' : T.coral,
+                                        border: `1px solid ${s.passed ? 'rgba(34,197,94,0.25)' : 'rgba(224,122,95,0.25)'}`,
+                                      }}>
+                                      {s.passed ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                                      {s.passed ? 'Passed' : 'Failed'}
+                                    </span>
+
+                                    {/* Violations */}
+                                    {s.violationCount > 0 && (
+                                      <span className="text-xs px-2 py-1 rounded-full flex items-center gap-1 flex-shrink-0"
+                                        style={{ background: 'rgba(232,185,96,0.12)', color: T.gold, border: '1px solid rgba(232,185,96,0.25)' }}>
+                                        <Shield className="w-3 h-3" />{s.violationCount}
+                                      </span>
+                                    )}
+
+                                    {/* Duration */}
+                                    <div className="text-xs flex items-center gap-1 flex-shrink-0" style={{ color: T.muted }}>
+                                      <Clock className="w-3 h-3" />{fmtDuration(s.durationSeconds)}
+                                    </div>
+
+                                    <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(15,76,117,0.3)' }} />
+                                  </div>
+
+                                  {/* Score bar */}
+                                  <div className="mt-3 h-1 rounded-full ml-13" style={{ background: 'rgba(15,76,117,0.08)', marginLeft: '52px' }}>
+                                    <div className="h-full rounded-full transition-all duration-700"
+                                      style={{ width: `${pct}%`, background: scoreColor }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── BATCH OVERVIEW ── */}
+            {selectedTab === 'overview' && (
+              <div className="space-y-8">
+                {/* Question Banks */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 style={{ color: T.navy, fontSize: '1.1rem' }}>Question Banks</h2>
+                    <ActionButton onClick={() => navigate('/admin/questions/create')} label="Create New" />
+                  </div>
+                  {questionBatches.length === 0 ? <EmptyState message="No question banks yet" /> : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {questionBatches.map(batch => (
+                        <QuestionBatchCard key={batch.questionBatchId} batch={batch}
+                          onClick={() => navigate(`/admin/questions/${batch.questionBatchId}`)} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Candidate Batches */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 style={{ color: T.navy, fontSize: '1.1rem' }}>Candidate Batches</h2>
+                    <ActionButton onClick={() => navigate('/admin/batch/new')} label="Create New" />
+                  </div>
+                  {candidateBatches.length === 0 ? <EmptyState message="No candidate batches yet" /> : (
+                    <div className="space-y-3">
+                      {candidateBatches.map(batch => (
+                        <CandidateBatchRow key={batch.batchId} batch={batch}
+                          onClick={() => navigate(`/admin/batch/${batch.batchId}`)} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>
   );
 };
+
+// ── Row / Card sub-components ─────────────────────────────────────────────────
+
+const cardStyle: React.CSSProperties = {
+  background: T.card, border: `1px solid ${T.border}`,
+  backdropFilter: 'blur(12px)', boxShadow: T.shadow,
+};
+
+const AssignmentRow: React.FC<{
+  assignment: AdminAssignmentDto;
+  sc: typeof statusConfig[keyof typeof statusConfig];
+  onClick: () => void;
+}> = ({ assignment: a, sc, onClick }) => (
+  <div onClick={onClick} className="rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-200"
+    style={cardStyle}
+    onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = T.cardHover; el.style.transform = 'translateY(-1px)'; el.style.boxShadow = T.shadowHover; }}
+    onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = T.card; el.style.transform = 'translateY(0)'; el.style.boxShadow = T.shadow; }}>
+    <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ background: T.teal }} />
+    <div className="pl-3">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <h3 className="text-sm" style={{ color: T.navy }}>{a.testTitle}</h3>
+            <span className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+              style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+              <sc.Icon className="w-3 h-3" />{sc.label}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <InfoCell label="Batch" value={a.batchName ?? a.candidateEmail ?? '—'} />
+            <InfoCell label="Scheduled" value={fmtDate(a.scheduledStart)} />
+            <InfoCell label="Question Bank" value={a.questionBatchName} />
+            <InfoCell label="Deadline" value={fmtDate(a.deadline)} />
+          </div>
+        </div>
+        <ArrowUpRight className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: T.muted }} />
+      </div>
+    </div>
+  </div>
+);
+
+const UpcomingRow: React.FC<{ assignment: AdminAssignmentDto; onClick: () => void }> = ({ assignment: a, onClick }) => {
+  const scheduledDate = new Date(a.scheduledStart);
+  const daysUntil = Math.ceil((scheduledDate.getTime() - Date.now()) / 86_400_000);
+  return (
+    <div className="rounded-2xl p-5 relative overflow-hidden transition-all duration-200" style={cardStyle}>
+      <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ background: T.navy }} />
+      <div className="pl-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <h3 className="text-sm" style={{ color: T.navy }}>{a.testTitle}</h3>
+            {daysUntil <= 3 && daysUntil >= 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                style={{ background: 'rgba(224,122,95,0.12)', color: T.coral, border: '1px solid rgba(224,122,95,0.25)' }}>
+                <Zap className="w-3 h-3" /> Soon
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <InfoCell label="Batch" value={a.batchName ?? a.candidateEmail ?? '—'} icon={<Users className="w-3 h-3" />} />
+            <InfoCell label="Date & Time" value={fmtDate(a.scheduledStart)} icon={<Calendar className="w-3 h-3" />} />
+            <InfoCell label="Questions" value={`${a.questionCount}`} icon={<BookOpen className="w-3 h-3" />} />
+            <InfoCell label="Max Attempts" value={`${a.maxAttempts}`} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="text-center px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(15,76,117,0.08)', border: `1px solid rgba(15,76,117,0.15)` }}>
+            <div className="text-xl leading-none" style={{ color: T.navy }}>{Math.max(0, daysUntil)}</div>
+            <div className="text-xs mt-0.5" style={{ color: T.muted }}>days</div>
+          </div>
+          <button onClick={onClick}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm text-white transition-all duration-200"
+            style={{ background: `linear-gradient(135deg, ${T.navy}, ${T.teal})`, boxShadow: '0 0 16px rgba(27,154,170,0.25)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 24px rgba(27,154,170,0.45)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 16px rgba(27,154,170,0.25)'; }}>
+            Manage <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuestionBatchCard: React.FC<{ batch: QuestionBatchDto; onClick: () => void }> = ({ batch, onClick }) => (
+  <div onClick={onClick} className="rounded-2xl p-5 cursor-pointer transition-all duration-200" style={cardStyle}
+    onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = T.cardHover; el.style.transform = 'translateY(-2px)'; el.style.boxShadow = T.shadowHover; }}
+    onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = T.card; el.style.transform = 'translateY(0)'; el.style.boxShadow = T.shadow; }}>
+    <div className="flex items-start justify-between mb-3">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+        style={{ background: 'rgba(27,154,170,0.12)', border: '1px solid rgba(27,154,170,0.25)' }}>
+        <BookOpen className="w-4 h-4" style={{ color: T.teal }} />
+      </div>
+      {batch.difficulty && (
+        <span className="text-xs px-2 py-0.5 rounded-full capitalize"
+          style={{ background: 'rgba(15,76,117,0.08)', color: T.navy, border: `1px solid rgba(15,76,117,0.15)` }}>
+          {batch.difficulty}
+        </span>
+      )}
+    </div>
+    <h3 className="text-sm mb-1" style={{ color: T.navy }}>{batch.name}</h3>
+    <p className="text-xs mb-3" style={{ color: T.muted }}>
+      {[batch.domain, batch.topic].filter(Boolean).join(' · ') || 'No domain set'}
+    </p>
+    <div className="flex items-center justify-between text-xs" style={{ color: T.muted }}>
+      <span>{batch.questionCount} questions</span>
+      <span>{new Date(batch.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+    </div>
+  </div>
+);
+
+const CandidateBatchRow: React.FC<{ batch: CandidateBatchDto; onClick: () => void }> = ({ batch, onClick }) => (
+  <div className="rounded-2xl p-5 transition-all duration-200" style={cardStyle}>
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <h3 className="text-sm mb-2" style={{ color: T.navy }}>{batch.name}</h3>
+        <div className="flex items-center gap-5 text-xs" style={{ color: T.muted }}>
+          <span className="flex items-center gap-1"><Users className="w-3 h-3" />{batch.candidateCount} candidates</span>
+          {batch.domain && <span>{batch.domain}</span>}
+          <span>Created {new Date(batch.createdAt).toLocaleDateString()}</span>
+        </div>
+      </div>
+      <button onClick={onClick}
+        className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl transition-all duration-200"
+        style={{ background: 'rgba(15,76,117,0.08)', color: T.navy, border: `1px solid rgba(15,76,117,0.15)` }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(15,76,117,0.15)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(15,76,117,0.08)'; }}>
+        Manage <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+);
+
+const InfoCell: React.FC<{ label: string; value: string; icon?: React.ReactNode }> = ({ label, value, icon }) => (
+  <div>
+    <div className="mb-0.5" style={{ color: T.muted }}>{label}</div>
+    <div className="flex items-center gap-1" style={{ color: T.text }}>{icon}{value}</div>
+  </div>
+);
+
+const EmptyState: React.FC<{ message: string }> = ({ message }) => (
+  <div className="rounded-2xl p-12 text-center"
+    style={{ background: 'rgba(255,255,255,0.5)', border: `1px solid ${T.border}` }}>
+    <AlertCircle className="w-10 h-10 mx-auto mb-3" style={{ color: 'rgba(15,76,117,0.2)' }} />
+    <p style={{ color: T.muted }}>{message}</p>
+  </div>
+);
+
+const ActionButton: React.FC<{ onClick: () => void; label: string }> = ({ onClick, label }) => (
+  <button onClick={onClick}
+    className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-all duration-200"
+    style={{ background: 'rgba(27,154,170,0.1)', color: T.teal, border: '1px solid rgba(27,154,170,0.2)' }}
+    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(27,154,170,0.2)'; }}
+    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(27,154,170,0.1)'; }}>
+    <Plus className="w-4 h-4" />{label}
+  </button>
+);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDuration(secs: number) {
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return `${m}m ${s}s`;
+}
 
 export default AdminDashboard;

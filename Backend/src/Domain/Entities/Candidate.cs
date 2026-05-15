@@ -15,20 +15,15 @@ public class Candidate
     /// </summary>
     public Guid CandidateId { get; private set; }
 
-    /// <summary>
-    /// Email address (normalized to lowercase)
-    /// </summary>
-    public Email Email { get; private set; }
+    // Raw string columns — EF maps these directly, no value object conversion needed
+    public string EmailValue { get; private set; } = null!;
+    public string AzureAdOidValue { get; private set; } = null!;
+    public string DisplayNameValue { get; private set; } = null!;
 
-    /// <summary>
-    /// Azure AD Object Identifier (OID) from JWT claims - canonical identity
-    /// </summary>
-    public AzureAdOid AzureAdOid { get; private set; }
-
-    /// <summary>
-    /// Display name from Entra ID
-    /// </summary>
-    public DisplayName DisplayName { get; private set; }
+    // Value object accessors — computed from raw strings, ignored by EF
+    public Email Email => Email.Create(EmailValue);
+    public AzureAdOid AzureAdOid => AzureAdOid.Create(AzureAdOidValue);
+    public DisplayName DisplayName => DisplayName.Create(DisplayNameValue);
 
     /// <summary>
     /// User role in the system (Candidate, Admin, SuperAdmin)
@@ -45,12 +40,14 @@ public class Candidate
     public ICollection<TestSession> TestSessions { get; private set; } = new List<TestSession>();
     public ICollection<TestAssignment> TestAssignments { get; private set; } = new List<TestAssignment>();
 
+    public string? PasswordHash { get; private set; }
+
     // EF Core constructor
     private Candidate() 
     {
-        Email = null!;
-        AzureAdOid = null!;
-        DisplayName = null!;
+        EmailValue = null!;
+        AzureAdOidValue = null!;
+        DisplayNameValue = null!;
     }
 
     /// <summary>
@@ -65,9 +62,9 @@ public class Candidate
         return new Candidate
         {
             CandidateId = Guid.NewGuid(),
-            Email = Email.Create(email),
-            AzureAdOid = AzureAdOid.Create(azureAdOid),
-            DisplayName = DisplayName.Create(displayName),
+            EmailValue = Email.Create(email).Value,
+            AzureAdOidValue = AzureAdOid.Create(azureAdOid).Value,
+            DisplayNameValue = DisplayName.Create(displayName).Value,
             Role = role,
             CreatedAt = DateTime.UtcNow
         };
@@ -81,12 +78,25 @@ public class Candidate
         Role = newRole;
     }
 
+    public void SetPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
+            throw new ArgumentException("Password must be at least 6 characters.");
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+    }
+
+    public bool VerifyPassword(string password)
+    {
+        if (PasswordHash == null) return false;
+        return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
+    }
+
     /// <summary>
     /// Updates the display name (e.g., if changed in Entra ID)
     /// </summary>
     public void UpdateDisplayName(string newDisplayName)
     {
-        DisplayName = DisplayName.Create(newDisplayName);
+        DisplayNameValue = DisplayName.Create(newDisplayName).Value;
     }
 
     /// <summary>

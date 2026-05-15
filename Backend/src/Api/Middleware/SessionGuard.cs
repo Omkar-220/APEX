@@ -45,5 +45,5 @@ public static class SessionGuard
     /// </summary>
     public static string GetOid(HttpContext ctx) =>
         ctx.User.FindFirstValue("oid")
-            ?? throw new UnauthorizedAccessException("OID claim not found in token.");
+        ?? throw new UnauthorizedAccessException("OID claim not found in token.");
 }

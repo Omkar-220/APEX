@@ -86,6 +86,24 @@ public class Question
     public bool IsCorrectOption(char option) =>
         char.ToUpperInvariant(option) == CorrectOption;
 
+    public void Update(string content, string optionA, string optionB, string optionC, string optionD, char correctOption, decimal weightage)
+    {
+        if (string.IsNullOrWhiteSpace(content)) throw new ArgumentException("Content cannot be empty.");
+        if (string.IsNullOrWhiteSpace(optionA) || string.IsNullOrWhiteSpace(optionB) ||
+            string.IsNullOrWhiteSpace(optionC) || string.IsNullOrWhiteSpace(optionD))
+            throw new ArgumentException("All options must have a value.");
+        ValidateOption(correctOption);
+        if (weightage <= 0) throw new ArgumentException("Weightage must be greater than 0.");
+
+        Content       = content.Trim();
+        OptionA       = optionA.Trim();
+        OptionB       = optionB.Trim();
+        OptionC       = optionC.Trim();
+        OptionD       = optionD.Trim();
+        CorrectOption = char.ToUpperInvariant(correctOption);
+        Weightage     = weightage;
+    }
+
     private static void ValidateOption(char option)
     {
         if (!"ABCD".Contains(char.ToUpperInvariant(option)))

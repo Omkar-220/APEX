@@ -5,6 +5,7 @@ using Application.Commands.Admin;
 using Application.Queries;
 using Application.Queries.Admin;
 using Application.Services;
+using Domain.Ports.Repositories;
 using System.Security.Claims;
 
 namespace Api.Endpoints;
@@ -16,6 +17,31 @@ public static class AdminEndpoints
         var group = app.MapGroup("/api/admin").WithTags("Admin");
 
         // ── Users ─────────────────────────────────────────────────────────────
+
+        // GET /api/admin/completed-sessions
+        group.MapGet("/completed-sessions", async (
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            GetCompletedSessionsHandler handler,
+            CancellationToken ct) =>
+        {
+            await GetCurrentAdmin(ctx, meHandler, ct);
+            var result = await handler.HandleAsync(ct);
+            return Results.Ok(result);
+        });
+
+        // GET /api/admin/sessions/{sessionId}/scorecard
+        group.MapGet("/sessions/{sessionId:guid}/scorecard", async (
+            Guid sessionId,
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            GetScorecardHandler handler,
+            CancellationToken ct) =>
+        {
+            await GetCurrentAdmin(ctx, meHandler, ct);
+            var result = await handler.HandleAsync(new GetScorecardQuery(sessionId), ct);
+            return Results.Ok(result);
+        });
 
         // GET /api/admin/users
         group.MapGet("/users", async (
@@ -110,6 +136,51 @@ public static class AdminEndpoints
 
         // ── Question Batches ──────────────────────────────────────────────────
 
+        // PUT /api/admin/questions/{id}
+        group.MapPut("/questions/{id:guid}", async (
+            Guid id,
+            UpdateQuestionRequest body,
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            IQuestionRepository qRepo,
+            CancellationToken ct) =>
+        {
+            await GetCurrentAdmin(ctx, meHandler, ct);
+            var question = await qRepo.GetByIdAsync(id, ct)
+                ?? throw new KeyNotFoundException($"Question {id} not found.");
+            question.Update(body.Content, body.OptionA, body.OptionB, body.OptionC, body.OptionD,
+                body.CorrectOption, body.Weightage);
+            await qRepo.UpdateAsync(question, ct);
+            return Results.Ok(new { ok = true });
+        });
+
+        // GET /api/admin/question-batches/{id}/questions
+        group.MapGet("/question-batches/{id:guid}/questions", async (
+            Guid id,
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            IQuestionBatchRepository qbRepo,
+            IQuestionRepository qRepo,
+            CancellationToken ct) =>
+        {
+            await GetCurrentAdmin(ctx, meHandler, ct);
+            var questionIds = await qbRepo.GetQuestionIdsAsync(id, ct);
+            if (questionIds.Count == 0) return Results.Ok(Array.Empty<object>());
+            var questions = await qRepo.GetByIdsAsync(questionIds, ct);
+            var result = questions.Select(q => new
+            {
+                questionId    = q.QuestionId,
+                content       = q.Content,
+                optionA       = q.OptionA,
+                optionB       = q.OptionB,
+                optionC       = q.OptionC,
+                optionD       = q.OptionD,
+                correctOption = q.CorrectOption.ToString(),
+                weightage     = q.Weightage,
+            });
+            return Results.Ok(result);
+        });
+
         // POST /api/admin/question-batches
         group.MapPost("/question-batches", async (
             CreateQuestionBatchRequest body,
@@ -186,6 +257,38 @@ public static class AdminEndpoints
             var added = await handler.HandleAsync(
                 new AddCandidatesToBatchCommand(id, body.CandidateIds), ct);
             return Results.Ok(new { ok = true, added });
+        });
+
+        // DELETE /api/admin/batches/{id}  (soft delete)
+        group.MapDelete("/batches/{id:guid}", async (
+            Guid id,
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            IBatchRepository batchRepo,
+            CancellationToken ct) =>
+        {
+            await GetCurrentAdmin(ctx, meHandler, ct);
+            var batch = await batchRepo.GetByIdAsync(id, ct)
+                ?? throw new KeyNotFoundException($"Batch {id} not found.");
+            batch.Deactivate();
+            await batchRepo.UpdateAsync(batch, ct);
+            return Results.Ok(new { ok = true });
+        });
+
+        // DELETE /api/admin/question-batches/{id}  (soft delete)
+        group.MapDelete("/question-batches/{id:guid}", async (
+            Guid id,
+            HttpContext ctx,
+            GetMeHandler meHandler,
+            IQuestionBatchRepository qbRepo,
+            CancellationToken ct) =>
+        {
+            await GetCurrentAdmin(ctx, meHandler, ct);
+            var batch = await qbRepo.GetByIdAsync(id, ct)
+                ?? throw new KeyNotFoundException($"Question batch {id} not found.");
+            batch.Deactivate();
+            await qbRepo.UpdateAsync(batch, ct);
+            return Results.Ok(new { ok = true });
         });
 
         // ── Tests ─────────────────────────────────────────────────────────────

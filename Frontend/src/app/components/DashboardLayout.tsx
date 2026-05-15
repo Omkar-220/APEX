@@ -28,10 +28,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
 
-  const isCandidate = user?.role === 'candidate';
+  const isCandidate = user?.role === 'Candidate';
 
   const navItems = isCandidate
     ? [
@@ -239,12 +239,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
                     style={{ background: 'linear-gradient(135deg, #0F4C75, #1B9AAA)' }}
                   >
-                    {user?.name?.charAt(0) || 'U'}
+                    {user?.displayName?.charAt(0) || 'U'}
                   </div>
                   <div className="hidden sm:block text-left">
-                    <div className="text-xs leading-none mb-0.5" style={{ color: '#2D3436' }}>{user?.name}</div>
-                    <div className="text-xs capitalize" style={{ color: '#636E72' }}>
-                      {user?.role?.replace('-', ' ')}
+                    <div className="text-xs leading-none mb-0.5" style={{ color: '#2D3436' }}>{user?.displayName}</div>
+                    <div className="text-xs" style={{ color: '#636E72' }}>
+                      {user?.role}
                     </div>
                   </div>
                   <ChevronDown
